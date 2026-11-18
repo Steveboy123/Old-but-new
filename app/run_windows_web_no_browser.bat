@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions
 cd /d "%~dp0"
-title Dr Exploit Control Nexus V2.27 - Web UI
+title Dr Exploit Control Nexus V2.28 - Web UI
 if not exist ".venv\Scripts\python.exe" (
     echo Run install_windows.bat first.
     pause

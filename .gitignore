@@ -1,0 +1,27 @@
+# Local credentials and secrets — never commit
+.env
+app/.env
+.webui_secret
+app/.webui_secret
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+app/.venv/
+
+# Runtime data written by the bot / dashboard
+app/web_session.json
+app/user_presets.json
+app/rise_fall_presets.json
+app/rise_fall_session.json
+app/ai_optimizer_settings.json
+app/*.csv
+app/*.jsonl
+app/.runtime_control/
+app/ai_optimizer_runs/
+app/rise_fall_lab_runs/
+app/session_diagnostics/
+app/strategy_lab_runs/
+app/support_reports/
+*.tmp

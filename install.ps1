@@ -1,7 +1,7 @@
 ﻿$ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
-$Version = '2.27'
+$Version = '2.28'
 $FixedAppId = '346MK1Nd8vpaSJy7EzQQT'
 $InstallDir = Join-Path $env:LOCALAPPDATA 'ControlNexus'
 $PayloadDir = Join-Path $PSScriptRoot 'app'

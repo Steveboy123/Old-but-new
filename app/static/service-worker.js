@@ -1,4 +1,4 @@
-const CACHE = 'control-nexus-v2.27-signal-snapshot-fix';
+const CACHE = 'control-nexus-v2.28-risk-reward';
 const APP_SHELL = [
   '/',
   '/static/style.css',

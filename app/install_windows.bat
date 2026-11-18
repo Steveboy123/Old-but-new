@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions
 cd /d "%~dp0"
-title Dr Exploit Control Nexus V2.27 - Repair Python Environment
+title Dr Exploit Control Nexus V2.28 - Repair Python Environment
 
 set "PYEXE="
 where py >nul 2>&1

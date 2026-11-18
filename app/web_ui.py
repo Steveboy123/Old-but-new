@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Local web dashboard for Dr Exploit Control V2.27.
+"""Local web dashboard for Dr Exploit Control V2.28.
 
 This server uses only the Python standard library. It binds to 127.0.0.1 by
 default. Credentials remain in the local .env file and are never returned to
@@ -71,7 +71,7 @@ AI_OPTIMIZER_SETTINGS_PATH = ROOT / "ai_optimizer.json"
 AI_OPTIMIZER_HISTORY_PATH = ROOT / "ai_optimizer_history.json"
 AI_OPTIMIZER_RUN_DIR = ROOT / "ai_optimizer_runs"
 AI_OPTIMIZER_RUN_DIR.mkdir(exist_ok=True)
-WEB_UI_VERSION = "2.27"
+WEB_UI_VERSION = "2.28"
 LOG_LIMIT = 4000
 
 ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
@@ -671,7 +671,60 @@ DEFAULT_SESSION: Dict[str, Any] = {
     "smart_loss_opposite_signal": True,
     "smart_loss_rescue_profit": "0.02",
     "multiplier": 750,
+    # V2.28 Risk:Reward manager (off by default so older setups behave exactly as before).
+    "rr_enabled": False,
+    "rr_ratio": "3",
+    "rr_risk_basis": "amount",
+    "rr_risk_value": "1.00",
+    "rr_breakeven_r": "0",
+    "rr_lock_r": "0.10",
+    "rr_session_stop_r": "0",
+    "rr_session_target_r": "0",
 }
+
+RR_RISK_BASES = ("amount", "stake_pct", "capital_pct", "ticks")
+
+
+def validate_risk_reward(payload: Dict[str, Any], stake: Decimal) -> Dict[str, Any]:
+    """Validate the Risk:Reward manager fields (mirrors bot.RiskReward.validate)."""
+    enabled = _boolean(payload.get("rr_enabled", False))
+    ratio = _decimal(payload.get("rr_ratio", "3"), "Risk:Reward ratio", minimum=Decimal("0"), allow_zero=False)
+    basis = str(payload.get("rr_risk_basis", "amount") or "amount").strip().lower()
+    if basis not in RR_RISK_BASES:
+        raise ValueError("Unknown risk basis")
+    value = _decimal(payload.get("rr_risk_value", "1.00"), "Risk per trade", minimum=Decimal("0"), allow_zero=False)
+    trigger = _decimal(payload.get("rr_breakeven_r", "0"), "Profit lock trigger (R)", minimum=Decimal("0"))
+    lock = _decimal(payload.get("rr_lock_r", "0.10"), "Locked profit (R)", minimum=Decimal("0"))
+    stop_r = _decimal(payload.get("rr_session_stop_r", "0"), "Session R stop", minimum=Decimal("0"))
+    target_r = _decimal(payload.get("rr_session_target_r", "0"), "Session R target", minimum=Decimal("0"))
+    if enabled:
+        if not Decimal("0.25") <= ratio <= Decimal("20"):
+            raise ValueError("Risk:Reward ratio must be between 1:0.25 and 1:20")
+        if basis == "amount":
+            if value < Decimal("0.01"):
+                raise ValueError("Risk per trade must be at least 0.01")
+            if value >= stake:
+                raise ValueError(f"Risk per trade must be below the stake per split ({stake})")
+        elif basis == "stake_pct" and not Decimal("0.5") <= value <= Decimal("95"):
+            raise ValueError("Risk % of stake must be between 0.5 and 95")
+        elif basis == "capital_pct" and not Decimal("0.05") <= value <= Decimal("95"):
+            raise ValueError("Risk % of capital must be between 0.05 and 95")
+        elif basis == "ticks" and not Decimal("1") <= value <= Decimal("10000"):
+            raise ValueError("Risk in ticks must be between 1 and 10000")
+        if trigger > 0 and trigger >= ratio:
+            raise ValueError("Profit lock trigger must be below the reward target (ratio)")
+        if lock >= (trigger if trigger > 0 else Decimal("1")):
+            raise ValueError("Locked profit must be below the lock trigger (or below 1R when the lock is off)")
+    return {
+        "rr_enabled": enabled,
+        "rr_ratio": format(ratio.normalize(), "f"),
+        "rr_risk_basis": basis,
+        "rr_risk_value": format(value.normalize(), "f"),
+        "rr_breakeven_r": format(trigger.normalize(), "f"),
+        "rr_lock_r": format(lock.normalize(), "f"),
+        "rr_session_stop_r": format(stop_r.normalize(), "f"),
+        "rr_session_target_r": format(target_r.normalize(), "f"),
+    }
 
 
 def load_last_session() -> Dict[str, Any]:
@@ -1048,6 +1101,10 @@ def validate_session(payload: Dict[str, Any]) -> Dict[str, Any]:
         raise ValueError("Unknown exit mode")
     take_profit_unit=str(payload.get("take_profit_unit","amount")).strip().lower()
     if take_profit_unit not in {"amount","ticks"}:raise ValueError("Take-profit measurement must be amount or ticks")
+    risk_reward = validate_risk_reward(payload, stake)
+    if risk_reward["rr_enabled"]:
+        # The Risk:Reward basis decides how the bracket is measured.
+        take_profit_unit = "ticks" if risk_reward["rr_risk_basis"] == "ticks" else "amount"
     take_profit_ticks=_integer(payload.get("take_profit_ticks",3),"Take-profit ticks",minimum=1,maximum=100000);take_profit_ticks_max=_integer(payload.get("take_profit_ticks_max",take_profit_ticks),"Maximum take-profit ticks",minimum=1,maximum=100000)
     if take_profit_mode=="fixed":take_profit_ticks_max=take_profit_ticks
     if take_profit_ticks_max<take_profit_ticks:raise ValueError("Maximum take-profit ticks cannot be below the minimum")
@@ -1166,6 +1223,7 @@ def validate_session(payload: Dict[str, Any]) -> Dict[str, Any]:
         "smart_loss_opposite_signal": smart_loss_opposite_signal,
         "smart_loss_rescue_profit": format(smart_loss_rescue_profit, "f"),
         "multiplier": multiplier,
+        **risk_reward,
         "live_confirmation": live_confirmation,
         "stake_per_trade": format(stake, "f"),
     }
@@ -1217,6 +1275,19 @@ def build_bot_command(settings: Dict[str, Any], python_executable: str = sys.exe
         "--smart-loss-rescue-profit", settings.get("smart_loss_rescue_profit", "0.02"),
     ])
     command.append("--smart-loss" if settings.get("smart_loss_enabled") else "--no-smart-loss")
+    if settings.get("rr_enabled"):
+        command.extend([
+            "--risk-reward",
+            "--rr-ratio", str(settings.get("rr_ratio", "3")),
+            "--rr-risk-basis", str(settings.get("rr_risk_basis", "amount")),
+            "--rr-risk-value", str(settings.get("rr_risk_value", "1.00")),
+            "--rr-breakeven-r", str(settings.get("rr_breakeven_r", "0")),
+            "--rr-lock-r", str(settings.get("rr_lock_r", "0.10")),
+            "--rr-session-stop-r", str(settings.get("rr_session_stop_r", "0")),
+            "--rr-session-target-r", str(settings.get("rr_session_target_r", "0")),
+        ])
+    else:
+        command.append("--no-risk-reward")
     command.append(
         "--smart-loss-opposite-signal"
         if settings.get("smart_loss_opposite_signal", True)
@@ -1601,7 +1672,9 @@ class BotProcessManager:
                     "smart_loss_max_watch_ticks","smart_loss_adverse_ticks","smart_loss_adverse_window","smart_loss_opposite_signal",
                     "smart_loss_rescue_profit","multiplier","ensemble_policy","ensemble_min_votes","ensemble_memory_ticks",
                     "ensemble_confirmations","ensemble_cooldown_ticks","ensemble_regime_lookback","ensemble_trend_threshold",
-                    "ensemble_weight_threshold","ensemble_conflict_margin"
+                    "ensemble_weight_threshold","ensemble_conflict_margin",
+                    "rr_enabled","rr_ratio","rr_risk_basis","rr_risk_value","rr_breakeven_r","rr_lock_r",
+                    "rr_session_stop_r","rr_session_target_r"
                 }
                 outgoing["settings"] = {mapping.get(k,k): v for k,v in raw_settings.items() if k in allowed}
                 if "strategy" in raw_settings:
@@ -1958,6 +2031,7 @@ def read_trades(limit: int = 250, path: Path = TRADES_PATH) -> Dict[str, Any]:
         rows = list(csv.DictReader(handle))
     profit_total = Decimal("0")
     wins = losses = 0
+    r_values: list[Decimal] = []
     for row in rows:
         try:
             profit = Decimal(str(row.get("profit", "0")))
@@ -1968,14 +2042,29 @@ def read_trades(limit: int = 250, path: Path = TRADES_PATH) -> Dict[str, Any]:
             wins += 1
         else:
             losses += 1
+        raw_r = str(row.get("r_multiple") or "").strip()
+        if raw_r:
+            try:
+                r_values.append(Decimal(raw_r))
+            except InvalidOperation:
+                pass
     total = len(rows)
     win_rate = Decimal(wins) / Decimal(total) * Decimal("100") if total else Decimal("0")
+    total_r = sum(r_values, Decimal("0"))
+    r_wins = sum(1 for value in r_values if value > 0)
     return {
         "rows": list(reversed(rows[-limit:])),
         "summary": {
             "trades": total, "wins": wins, "losses": losses,
             "profit": format(profit_total.quantize(Decimal("0.01")), "f"),
             "win_rate": format(win_rate.quantize(Decimal("0.1")), "f"),
+            # V2.28 Risk:Reward statistics (only trades opened with the manager on).
+            "r_trades": len(r_values),
+            "total_r": format(total_r.quantize(Decimal("0.01")), "f"),
+            "average_r": format((total_r / len(r_values)).quantize(Decimal("0.01")), "f") if r_values else "0.00",
+            "r_win_rate": format((Decimal(r_wins) / len(r_values) * 100).quantize(Decimal("0.1")), "f") if r_values else "0.0",
+            "best_r": format(max(r_values).quantize(Decimal("0.01")), "f") if r_values else "0.00",
+            "worst_r": format(min(r_values).quantize(Decimal("0.01")), "f") if r_values else "0.00",
         },
     }
 
@@ -2083,6 +2172,19 @@ class StrategyLabManager:
             "smart_server_take_profit": str(raw.get("smart_server_take_profit", "2.00")),
             "multiplier": multiplier,
         })
+        # V2.28: optional per-tester Risk:Reward bracket (money basis) so ratios
+        # such as 1:2 / 1:3 / 1:4 can be compared side by side on DEMO.
+        if _boolean(raw.get("rr_enabled", False)):
+            base.update({
+                "rr_enabled": True,
+                "rr_ratio": str(raw.get("rr_ratio", "3")),
+                "rr_risk_basis": "amount",
+                "rr_risk_value": str(raw.get("rr_risk_value", "0.25")),
+                "rr_breakeven_r": str(raw.get("rr_breakeven_r", "0")),
+                "rr_lock_r": str(raw.get("rr_lock_r", "0.10")),
+                "rr_session_stop_r": "0",
+                "rr_session_target_r": "0",
+            })
         return validate_session(base)
 
     @staticmethod
@@ -2244,6 +2346,12 @@ class StrategyLabManager:
                 "smart_loss_adverse_window": settings.get("smart_loss_adverse_window"),
                 "smart_loss_opposite_signal": settings.get("smart_loss_opposite_signal"),
                 "smart_loss_rescue_profit": settings.get("smart_loss_rescue_profit"),
+                "rr_enabled": settings.get("rr_enabled", False),
+                "rr_ratio": settings.get("rr_ratio"),
+                "rr_risk_basis": settings.get("rr_risk_basis"),
+                "rr_risk_value": settings.get("rr_risk_value"),
+                "rr_breakeven_r": settings.get("rr_breakeven_r"),
+                "rr_lock_r": settings.get("rr_lock_r"),
             },
             "strategy_config": strategy_config,
             "performance": {
@@ -4006,6 +4114,10 @@ class AIOptimizerManager:
             "smart_min_distance_ticks": candidate.get("smart_min_distance_ticks", session.get("smart_min_distance_ticks")),
             "smart_server_take_profit": candidate.get("smart_server_take_profit", session.get("smart_server_take_profit")),
         })
+        # AI candidates are validated in the Lab with their own exits. Keep the
+        # live run identical to what was validated instead of layering the
+        # manual Risk:Reward bracket on top of it.
+        session["rr_enabled"] = False
         session["loss_limit"] = f"{float(self.settings.get('live_max_loss') or 10.0):.2f}"
         live_target = float(self.settings.get("live_profit_target") or 0.0)
         session["profit_target"] = f"{live_target:.2f}" if live_target > 0 else "0"
@@ -4684,7 +4796,7 @@ def api_bootstrap() -> Dict[str, Any]:
 
 
 class DashboardHandler(BaseHTTPRequestHandler):
-    server_version = "DrExploitControlWebUI/2.27"
+    server_version = f"DrExploitControlWebUI/{WEB_UI_VERSION}"
 
     def log_message(self, fmt: str, *args: Any) -> None:
         if self.path.startswith("/api/status") or self.path.startswith("/api/logs"):

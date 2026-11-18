@@ -1,4 +1,4 @@
-DR EXPLOIT CONTROL NEXUS V2.27 - WINDOWS EXE BOOTSTRAP
+DR EXPLOIT CONTROL NEXUS V2.28 - WINDOWS EXE BOOTSTRAP
 
 Fixed Deriv App ID:
 346MK1Nd8vpaSJy7EzQQT
@@ -27,3 +27,11 @@ V2.27 signal snapshot integrity fix:
 - Every split position in that batch uses the same frozen entry pattern/context.
 - Hammer entries fail closed if the frozen signal has no valid pattern.
 - Adaptive/fixed batch TP scoring uses the frozen entry metrics instead of later ticks.
+
+V2.28 Risk:Reward manager:
+- One-click 1:1 / 1:1.5 / 1:2 / 1:3 / 1:4 / 1:5 (or custom) ratios on Session setup.
+- Risk per trade as a fixed amount, % of stake, % of capital or Step ticks.
+- Per-trade stop loss (1R) and take profit (ratio x R) attached to every Deriv order.
+- Optional profit lock, session limits in R, R-multiple history and a live calculator.
+- Multiplier Lab ratio test (1:1-1:4) on DEMO. Off by default; see
+  V2_28_RISK_REWARD_MANAGER_NOTES.txt.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dr Exploit Control V2.27 — Step 100 multiplier trading bot with Strategy Fusion diagnostics, reconnect, graceful entry-stop, and recovery-aware Smart Loss Guard support.
+"""Dr Exploit Control V2.28 — Step 100 multiplier trading bot with Strategy Fusion diagnostics, reconnect, graceful entry-stop, recovery-aware Smart Loss Guard and a Risk:Reward manager.
 
 Core features
 -------------
@@ -16,6 +16,9 @@ Core features
 * Optional session profit target, loss limit, and win target.
 * Fixed/adaptive TP measured in money or Step Index ticks, plus smart-trailing/hybrid exits.
 * Optional server-side and recovery-aware Smart Loss protection.
+* Risk:Reward manager (1:1 ... 1:5 or custom): per-trade stop loss and take
+  profit calculated from a fixed amount, % of stake, % of capital or Step ticks,
+  optional profit lock, R-multiple tracking and session R limits.
 * Live console dashboard and detailed CSV trade history.
 
 This program cannot guarantee profit. Test on a Deriv demo account first.
@@ -30,6 +33,7 @@ import copy
 import getpass
 import json
 import logging
+import math
 import os
 import signal
 import statistics
@@ -85,7 +89,7 @@ else:
 LIVE_CONTROL_RAW = os.getenv("DR_EXPLOIT_LIVE_CONTROL_FILE", "").strip()
 TELEMETRY_RAW = os.getenv("DR_EXPLOIT_TELEMETRY_FILE", "").strip()
 
-BOT_VERSION = "2.27"
+BOT_VERSION = "2.28"
 LOGGER = logging.getLogger("dr_exploit_control")
 STEP100_ALLOWED_MULTIPLIERS = (750, 2000, 3500, 5500, 7500)
 DERIV_OPTIONS_REST_BASE = "https://api.derivws.com"
@@ -580,6 +584,17 @@ class SessionSettings:
     smart_loss_opposite_signal: bool = True
     smart_loss_rescue_profit: Decimal = Decimal("0.02")
     trades_per_signal: int = 0  # 0 = use legacy batch_mode; otherwise exact max positions per fresh signal
+    # V2.28 Risk:Reward manager. When enabled, every new trade gets its own
+    # stop loss (1R) and take profit (ratio x R) bracket calculated at order
+    # time from the real stake, so the operator never has to work out TP/SL.
+    rr_enabled: bool = False
+    rr_ratio: Decimal = Decimal("3")  # reward multiple: 3 means 1:3
+    rr_risk_basis: str = "amount"  # amount | stake_pct | capital_pct | ticks
+    rr_risk_value: Decimal = Decimal("1.00")
+    rr_breakeven_r: Decimal = Decimal("0")  # lock profit after +X R; 0 disables
+    rr_lock_r: Decimal = Decimal("0.10")  # profit kept once the lock is armed, in R
+    rr_session_stop_r: Decimal = Decimal("0")  # stop entries at -X R for the session; 0 disables
+    rr_session_target_r: Decimal = Decimal("0")  # stop entries at +X R for the session; 0 disables
 
     @property
     def stop_after_loss(self) -> bool:
@@ -622,6 +637,26 @@ class TradePosition:
     loss_guard_trigger_count: int = 0
     loss_guard_reset_count: int = 0
     loss_adverse_tick_history: list[bool] = field(default_factory=list)
+    # Risk:Reward bracket frozen when the contract opened. Later live-control
+    # changes never move the stop/target of a trade that is already running.
+    rr_active: bool = False
+    rr_ratio: Decimal = Decimal("0")
+    risk_amount: Decimal = Decimal("0")
+    reward_amount: Decimal = Decimal("0")
+    risk_ticks: float = 0.0
+    reward_ticks: float = 0.0
+    stop_loss: Decimal = Decimal("0")
+    rr_lock_trigger: Decimal = Decimal("0")
+    rr_lock_profit: Decimal = Decimal("0")
+    rr_lock_trigger_ticks: float = 0.0
+    rr_lock_ticks: float = 0.0
+    rr_lock_armed: bool = False
+
+    @property
+    def r_multiple(self) -> Optional[float]:
+        if not self.rr_active or self.risk_amount <= 0:
+            return None
+        return float(self.current_profit / self.risk_amount)
 
 
 @dataclass
@@ -634,6 +669,8 @@ class SessionStats:
     trades: int = 0
     last_signal: str = "WAITING"
     stop_reason: str = ""
+    total_r: Decimal = Decimal("0")
+    r_trades: int = 0
 
     @property
     def win_rate(self) -> Decimal:
@@ -642,6 +679,12 @@ class SessionStats:
         return (Decimal(self.wins) / Decimal(self.trades) * Decimal("100")).quantize(
             Decimal("0.1")
         )
+
+    @property
+    def average_r(self) -> Decimal:
+        if self.r_trades <= 0:
+            return Decimal("0")
+        return (self.total_r / Decimal(self.r_trades)).quantize(Decimal("0.01"))
 
 
 # ---------------------------------------------------------------------------
@@ -2459,6 +2502,229 @@ class SmartLossGuard:
         return -abs(cap)
 
 
+RR_RISK_BASES = ("amount", "stake_pct", "capital_pct", "ticks")
+RR_MIN_RATIO = Decimal("0.25")
+RR_MAX_RATIO = Decimal("20")
+
+
+@dataclass(frozen=True)
+class RiskPlan:
+    """One trade's Risk:Reward bracket.
+
+    ``risk_amount`` is 1R in account currency. In tick mode the bracket is
+    defined in Step ticks and the currency values are estimates from the live
+    spot price; in money mode the tick distances are the estimates.
+    """
+
+    unit: str  # amount | ticks
+    ratio: Decimal
+    risk_amount: Decimal
+    reward_amount: Decimal
+    risk_ticks: float
+    reward_ticks: float
+    server_stop_loss: Decimal  # attached to the Deriv order; 0 = none
+    server_take_profit: Decimal
+    lock_trigger: Decimal
+    lock_profit: Decimal
+    lock_trigger_ticks: float
+    lock_ticks: float
+    money_per_tick: Optional[Decimal]
+    note: str = ""
+
+    @property
+    def break_even_win_rate(self) -> Decimal:
+        return RiskReward.break_even_win_rate(self.ratio)
+
+    def as_dict(self) -> Dict[str, Any]:
+        return {
+            "unit": self.unit,
+            "ratio": float(self.ratio),
+            "label": RiskReward.label(self.ratio),
+            "risk_amount": float(self.risk_amount),
+            "reward_amount": float(self.reward_amount),
+            "risk_ticks": round(self.risk_ticks, 3),
+            "reward_ticks": round(self.reward_ticks, 3),
+            "server_stop_loss": float(self.server_stop_loss),
+            "server_take_profit": float(self.server_take_profit),
+            "lock_trigger": float(self.lock_trigger),
+            "lock_profit": float(self.lock_profit),
+            "lock_trigger_ticks": round(self.lock_trigger_ticks, 3),
+            "lock_ticks": round(self.lock_ticks, 3),
+            "money_per_tick": float(self.money_per_tick) if self.money_per_tick is not None else None,
+            "break_even_win_rate": float(self.break_even_win_rate),
+            "note": self.note,
+        }
+
+
+class RiskReward:
+    """Pure Risk:Reward maths for the multiplier engine.
+
+    Step 100 moves 0.1 per tick. For a multiplier contract the floating P/L of
+    one tick is approximately ``stake * multiplier * 0.1 / spot``; commission is
+    charged by Deriv on top, so tick/currency conversions are estimates.
+    """
+
+    TICK_SIZE = Decimal("0.1")
+    BACKUP_BUFFER = Decimal("1.5")  # tick mode: Deriv-side backstop sits 1.5x beyond the local level
+    MIN_TAKE_PROFIT = Decimal("0.10")
+
+    @staticmethod
+    def label(ratio: Decimal) -> str:
+        text = format(Decimal(ratio).normalize(), "f")
+        return f"1:{text}"
+
+    @staticmethod
+    def break_even_win_rate(ratio: Decimal) -> Decimal:
+        """Win rate needed to break even when wins pay ``ratio`` R and losses cost 1R."""
+        ratio = Decimal(ratio)
+        if ratio <= 0:
+            return Decimal("100")
+        return (Decimal("100") / (Decimal("1") + ratio)).quantize(Decimal("0.1"))
+
+    @staticmethod
+    def expectancy_r(win_rate_pct: Decimal, ratio: Decimal) -> Decimal:
+        """Expected R per trade for a win rate (0-100) at this ratio."""
+        p = Decimal(win_rate_pct) / Decimal("100")
+        return (p * Decimal(ratio) - (Decimal("1") - p)).quantize(Decimal("0.01"))
+
+    @classmethod
+    def money_per_tick(cls, stake: Decimal, multiplier: int, spot: Any) -> Optional[Decimal]:
+        try:
+            spot_value = Decimal(str(spot))
+        except (InvalidOperation, TypeError, ValueError):
+            return None
+        if not spot_value.is_finite() or spot_value <= 0 or stake <= 0 or multiplier <= 0:
+            return None
+        return stake * Decimal(int(multiplier)) * cls.TICK_SIZE / spot_value
+
+    @staticmethod
+    def _floor(value: Decimal) -> Decimal:
+        return value.quantize(MONEY_STEP, rounding=ROUND_DOWN)
+
+    @staticmethod
+    def ceil_ticks(ticks: float) -> int:
+        """Whole Step ticks needed to reach a (possibly fractional) tick distance."""
+        return max(1, int(math.ceil(float(ticks) - 1e-9)))
+
+    @classmethod
+    def risk_amount(cls, basis: str, value: Decimal, stake: Decimal, capital: Decimal) -> Decimal:
+        if basis == "amount":
+            return cls._floor(value)
+        if basis == "stake_pct":
+            return cls._floor(stake * value / Decimal("100"))
+        if basis == "capital_pct":
+            return cls._floor(capital * value / Decimal("100"))
+        return Decimal("0")
+
+    @classmethod
+    def plan(
+        cls,
+        settings: "SessionSettings",
+        stake: Decimal,
+        effective_capital: Decimal,
+        spot: Any,
+    ) -> RiskPlan:
+        ratio = Decimal(settings.rr_ratio)
+        basis = settings.rr_risk_basis
+        per_tick = cls.money_per_tick(stake, settings.multiplier, spot)
+        lock_r = max(Decimal("0"), Decimal(settings.rr_lock_r))
+        trigger_r = max(Decimal("0"), Decimal(settings.rr_breakeven_r))
+        max_stop = stake - MONEY_STEP
+        notes: list[str] = []
+
+        if basis == "ticks":
+            risk_ticks = float(settings.rr_risk_value)
+            reward_ticks = risk_ticks * float(ratio)
+            if per_tick is not None:
+                risk_amount = cls._floor(per_tick * Decimal(str(risk_ticks)))
+                reward_amount = cls._floor(per_tick * Decimal(str(reward_ticks)))
+                server_stop = cls._floor(risk_amount * cls.BACKUP_BUFFER)
+                if server_stop >= stake:
+                    server_stop = max_stop if max_stop > 0 else Decimal("0")
+                    notes.append("server backup stop capped below stake")
+                server_tp = max(cls.MIN_TAKE_PROFIT, cls._floor(reward_amount * cls.BACKUP_BUFFER))
+            else:
+                risk_amount = reward_amount = Decimal("0")
+                server_stop = settings.server_stop_loss if Decimal("0") < settings.server_stop_loss < stake else Decimal("0")
+                server_tp = settings.tick_tp_server_backup
+                notes.append("spot unknown: using configured server backups")
+            lock_trigger_ticks = risk_ticks * float(trigger_r)
+            lock_ticks = risk_ticks * float(lock_r)
+            return RiskPlan(
+                unit="ticks", ratio=ratio, risk_amount=risk_amount, reward_amount=reward_amount,
+                risk_ticks=risk_ticks, reward_ticks=reward_ticks, server_stop_loss=server_stop,
+                server_take_profit=server_tp,
+                lock_trigger=cls._floor(risk_amount * trigger_r), lock_profit=cls._floor(risk_amount * lock_r),
+                lock_trigger_ticks=lock_trigger_ticks, lock_ticks=lock_ticks,
+                money_per_tick=per_tick, note="; ".join(notes),
+            )
+
+        risk_amount = cls.risk_amount(basis, Decimal(settings.rr_risk_value), stake, effective_capital)
+        if risk_amount >= stake:
+            # A multiplier can never lose more than its stake, and Deriv needs
+            # the stop below it. Keep the bracket valid instead of refusing.
+            risk_amount = max_stop
+            notes.append("risk capped just below the stake")
+        if risk_amount < MONEY_STEP:
+            risk_amount = MONEY_STEP
+            notes.append("risk raised to the 0.01 minimum")
+        reward_amount = cls._floor(risk_amount * ratio)
+        if reward_amount < cls.MIN_TAKE_PROFIT:
+            reward_amount = cls.MIN_TAKE_PROFIT
+            notes.append("target raised to the 0.10 Deriv minimum")
+        risk_ticks = float(risk_amount / per_tick) if per_tick else 0.0
+        reward_ticks = float(reward_amount / per_tick) if per_tick else 0.0
+        return RiskPlan(
+            unit="amount", ratio=ratio, risk_amount=risk_amount, reward_amount=reward_amount,
+            risk_ticks=risk_ticks, reward_ticks=reward_ticks,
+            server_stop_loss=risk_amount if risk_amount > 0 and risk_amount < stake else Decimal("0"),
+            server_take_profit=reward_amount,
+            lock_trigger=cls._floor(risk_amount * trigger_r), lock_profit=cls._floor(risk_amount * lock_r),
+            lock_trigger_ticks=risk_ticks * float(trigger_r), lock_ticks=risk_ticks * float(lock_r),
+            money_per_tick=per_tick, note="; ".join(notes),
+        )
+
+    @staticmethod
+    def validate(settings: "SessionSettings", stake: Decimal) -> None:
+        """Raise ValueError for an unusable Risk:Reward configuration."""
+        if not settings.rr_enabled:
+            return
+        ratio = Decimal(settings.rr_ratio)
+        if not RR_MIN_RATIO <= ratio <= RR_MAX_RATIO:
+            raise ValueError(f"Risk:Reward ratio must be between 1:{RR_MIN_RATIO} and 1:{RR_MAX_RATIO}")
+        basis = settings.rr_risk_basis
+        if basis not in RR_RISK_BASES:
+            raise ValueError("Risk basis must be amount, stake_pct, capital_pct or ticks")
+        value = Decimal(settings.rr_risk_value)
+        if basis == "amount":
+            if value < MONEY_STEP:
+                raise ValueError("Risk per trade must be at least 0.01")
+            if value >= stake:
+                raise ValueError("Risk per trade must be below the stake per slot")
+        elif basis == "stake_pct":
+            if not Decimal("0.5") <= value <= Decimal("95"):
+                raise ValueError("Risk % of stake must be between 0.5 and 95")
+        elif basis == "capital_pct":
+            if not Decimal("0.05") <= value <= Decimal("95"):
+                raise ValueError("Risk % of capital must be between 0.05 and 95")
+        elif not Decimal("1") <= value <= Decimal("10000"):
+            raise ValueError("Risk in ticks must be between 1 and 10000")
+        expected_unit = "ticks" if basis == "ticks" else "amount"
+        if settings.take_profit_unit != expected_unit:
+            raise ValueError("Risk:Reward tick basis needs tick measurement; money bases need money measurement")
+        trigger = Decimal(settings.rr_breakeven_r)
+        lock = Decimal(settings.rr_lock_r)
+        if trigger < 0 or lock < 0:
+            raise ValueError("Profit lock values cannot be negative")
+        if trigger > 0 and trigger >= ratio:
+            raise ValueError("Profit lock trigger must be below the reward target")
+        # Smart/Hybrid trailing activates at the trigger, or at +1R when off.
+        if lock >= (trigger if trigger > 0 else Decimal("1")):
+            raise ValueError("Locked profit must be below the profit lock trigger (or below 1R when the lock is off)")
+        if settings.rr_session_stop_r < 0 or settings.rr_session_target_r < 0:
+            raise ValueError("Session R limits cannot be negative")
+
+
 # ---------------------------------------------------------------------------
 # Trading engine
 # ---------------------------------------------------------------------------
@@ -2656,6 +2922,10 @@ class TradingBot:
                 "smart_loss_max_watch_ticks": int, "smart_loss_adverse_ticks": int,
                 "smart_loss_adverse_window": int, "smart_loss_opposite_signal": bool,
                 "smart_loss_rescue_profit": self._runtime_decimal,
+                "rr_enabled": bool, "rr_ratio": self._runtime_decimal, "rr_risk_basis": str,
+                "rr_risk_value": self._runtime_decimal, "rr_breakeven_r": self._runtime_decimal,
+                "rr_lock_r": self._runtime_decimal, "rr_session_stop_r": self._runtime_decimal,
+                "rr_session_target_r": self._runtime_decimal,
                 "ensemble_policy": str, "ensemble_min_votes": int, "ensemble_memory_ticks": int,
                 "ensemble_confirmations": int, "ensemble_cooldown_ticks": int,
                 "ensemble_regime_lookback": int, "ensemble_trend_threshold": float,
@@ -2707,6 +2977,14 @@ class TradingBot:
                     raise ValueError("Smart Loss reset must be below its soft trigger")
                 if future.smart_loss_hard_cap <= future.smart_loss_soft_trigger or future.smart_loss_hard_cap >= future_stake:
                     raise ValueError("Smart Loss hard cap must be above soft trigger and below stake per slot")
+            if future.rr_enabled and "take_profit_unit" not in immediate:
+                # Keep TP measurement consistent with the selected risk basis.
+                unit = "ticks" if future.rr_risk_basis == "ticks" else "amount"
+                if future.take_profit_unit != unit:
+                    immediate["take_profit_unit"] = unit
+                    candidate = replace(candidate, take_profit_unit=unit)
+                    future = replace(future, take_profit_unit=unit)
+            RiskReward.validate(future, future_stake)
             if immediate:
                 self.settings = candidate
                 self.money.settings = self.settings
@@ -2779,6 +3057,20 @@ class TradingBot:
             result[name] = self._json_value(value)
         return result
 
+    def _risk_telemetry(self) -> Dict[str, Any]:
+        info: Dict[str, Any] = {
+            "enabled": self.settings.rr_enabled,
+            "session_r": float(self.stats.total_r), "r_trades": self.stats.r_trades,
+            "average_r": float(self.stats.average_r),
+            "open_risk": float(sum((p.risk_amount for p in self.active_positions.values() if p.rr_active), Decimal("0"))),
+        }
+        if self.settings.rr_enabled and self.money.slot_stake > 0:
+            try:
+                info["next_trade"] = self._risk_plan().as_dict()
+            except Exception as exc:
+                info["next_trade_error"] = str(exc)
+        return info
+
     def _write_runtime_telemetry(self, force: bool = False) -> None:
         path = self.telemetry_path
         if path is None:
@@ -2803,6 +3095,9 @@ class TradingBot:
                     "loss_guard_active": p.loss_guard_active, "loss_guard_ticks": p.loss_guard_ticks,
                     "status": p.status, "closing_requested": p.closing_requested, "closing_reason": p.closing_reason,
                     "entry_pattern": p.entry_pattern, "entry_sources": p.entry_sources, "entry_regime": p.entry_regime,
+                    "rr_active": p.rr_active, "rr_ratio": float(p.rr_ratio), "risk_amount": float(p.risk_amount),
+                    "reward_amount": float(p.reward_amount), "risk_ticks": p.risk_ticks, "reward_ticks": p.reward_ticks,
+                    "stop_loss": float(p.stop_loss), "rr_lock_armed": p.rr_lock_armed, "r_multiple": p.r_multiple,
                 })
             runtime = max(0, int(time.monotonic() - self.stats.started_at))
             payload = {
@@ -2822,6 +3117,7 @@ class TradingBot:
                 "effective_capital": float(self.money.effective_capital), "slot_stake": float(self.money.slot_stake),
                 "settings": self._settings_telemetry(), "metrics": self._json_value(self.last_metrics),
                 "positions": positions, "external_positions": len(self.external_position_ids),
+                "risk_manager": self._risk_telemetry(),
                 "reconnect": {"active": self.reconnecting, "success": self.reconnect_count, "attempts": self.reconnect_attempts,
                               "failures": self.reconnect_failures, "next_delay": self.reconnect_next_delay,
                               "last_error": self.last_reconnect_error, "last_disconnect": self.last_disconnect_at,
@@ -2993,6 +3289,10 @@ class TradingBot:
         stake = self.money.slot_stake
         if stake <= 0:
             raise RuntimeError("Calculated stake is zero. Increase capital or reduce the split count.")
+        try:
+            RiskReward.validate(self.settings, stake)
+        except ValueError as exc:
+            raise RuntimeError(f"Risk:Reward manager: {exc}") from exc
         if self.settings.capital > self.account_balance and self.account_balance > 0:
             raise RuntimeError(
                 f"Selected capital {self.settings.capital} exceeds account balance "
@@ -3187,7 +3487,7 @@ class TradingBot:
     def _print_start_summary(self) -> None:
         mode = "SIGNALS ONLY" if self.dry_run else ("LIVE" if self.live_flag else "DEMO")
         print("\n" + "=" * 72)
-        print("DR EXPLOIT CONTROL V2.22")
+        print(f"DR EXPLOIT CONTROL V{BOT_VERSION}")
         print("=" * 72)
         print(f"Build source:           {Path(__file__).resolve()}")
         print(f"Entry diagnostics:      {DIAGNOSTIC_LOG_PATH}")
@@ -3243,7 +3543,25 @@ class TradingBot:
             else:
                 print(f"Exit mode:             FIXED TP {self.settings.take_profit} {self.currency}")
         print(f"Multiplier:            x{self.settings.multiplier}")
-        print(f"Server stop loss:       {self.settings.server_stop_loss if self.settings.server_stop_loss > 0 else 'OFF'}")
+        if self.settings.rr_enabled:
+            basis_text = {
+                "amount": f"{self.settings.rr_risk_value} {self.currency} per trade",
+                "stake_pct": f"{self.settings.rr_risk_value}% of stake",
+                "capital_pct": f"{self.settings.rr_risk_value}% of session capital",
+                "ticks": f"{self.settings.rr_risk_value} Step ticks",
+            }.get(self.settings.rr_risk_basis, str(self.settings.rr_risk_value))
+            print(f"Risk manager:          {RiskReward.label(self.settings.rr_ratio)} | risk {basis_text}")
+            try:
+                print(f"Next trade bracket:    {self._risk_plan_text(self._risk_plan())}")
+            except Exception as exc:
+                print(f"Next trade bracket:    unavailable ({exc})")
+            if self.settings.rr_session_stop_r > 0 or self.settings.rr_session_target_r > 0:
+                print(
+                    f"Session R limits:      stop -{self.settings.rr_session_stop_r or 'OFF'}R "
+                    f"target +{self.settings.rr_session_target_r or 'OFF'}R"
+                )
+        print(f"Server stop loss:       {self.settings.server_stop_loss if self.settings.server_stop_loss > 0 else 'OFF'}"
+              + (" (replaced by Risk Manager stop)" if self.settings.rr_enabled else ""))
         if self.settings.smart_loss_enabled:
             print(
                 f"Smart loss guard:       soft=-{self.settings.smart_loss_soft_trigger} "
@@ -3518,6 +3836,8 @@ class TradingBot:
                 self.settings.split_delay_seconds,
             )
             self._write_entry_diagnostic("dry_run", "signal_would_open", signal_name, {"requested_count": count})
+            if self.settings.rr_enabled:
+                LOGGER.info("SIGNAL ONLY risk bracket: %s", self._risk_plan_text(self._risk_plan()))
             if self.settings.take_profit_mode == "adaptive":
                 target, score, tick_target = self._select_take_profit(signal_name, signal_snapshot)
                 if tick_target:
@@ -3576,7 +3896,10 @@ class TradingBot:
         tick_measurement_enabled = self.settings.take_profit_unit == "ticks"
         tick_tp_enabled = tick_measurement_enabled and self.settings.take_profit_mode in {"fixed", "adaptive"}
         smart_tick_enabled = tick_measurement_enabled and self.settings.take_profit_mode in {"smart", "hybrid"}
-        if not profit_exit_enabled and not loss_guard_enabled and not tick_tp_enabled:
+        rr_tick_enabled = any(
+            p.rr_active and p.take_profit_unit == "ticks" for p in self.active_positions.values()
+        )
+        if not profit_exit_enabled and not loss_guard_enabled and not tick_tp_enabled and not rr_tick_enabled:
             return
 
         for position in list(self.active_positions.values()):
@@ -3599,11 +3922,32 @@ class TradingBot:
                         del position.loss_adverse_tick_history[:-loss_window]
             position.last_quote = quote
 
-            if tick_measurement_enabled and position.entry_spot is not None:
+            position_ticks = tick_measurement_enabled or (position.rr_active and position.take_profit_unit == "ticks")
+            if position_ticks and position.entry_spot is not None:
                 signed_move = (quote - position.entry_spot) if position.direction == "MULTUP" else (position.entry_spot - quote)
                 position.favorable_ticks = round(signed_move / 0.1, 6)
                 position.peak_favorable_ticks = max(position.peak_favorable_ticks, position.favorable_ticks)
                 position.worst_ticks = min(position.worst_ticks, position.favorable_ticks)
+
+                # Risk:Reward tick bracket: local stop at -1R ticks, target at
+                # +ratio R ticks, optional profit lock. Deriv-side backups stay
+                # attached in case this PC disconnects.
+                if position.rr_active and position.take_profit_unit == "ticks" and position.risk_ticks > 0:
+                    if position.favorable_ticks <= -position.risk_ticks + 1e-9:
+                        self._schedule_position_sell(position, f"rr_stop_loss_{position.risk_ticks:g}_ticks")
+                        continue
+                    if position.favorable_ticks >= position.reward_ticks - 1e-9:
+                        self._schedule_position_sell(position, f"rr_take_profit_{position.reward_ticks:g}_ticks")
+                        continue
+                    if (
+                        self.settings.take_profit_mode in {"fixed", "adaptive"}
+                        and position.rr_lock_trigger_ticks > 0
+                    ):
+                        if position.peak_favorable_ticks >= position.rr_lock_trigger_ticks - 1e-9:
+                            position.rr_lock_armed = True
+                        if position.rr_lock_armed and position.favorable_ticks <= position.rr_lock_ticks + 1e-9:
+                            self._schedule_position_sell(position, "rr_profit_lock_ticks")
+                            continue
 
                 if tick_tp_enabled and position.take_profit_ticks > 0:
                     if position.favorable_ticks >= position.take_profit_ticks:
@@ -3611,21 +3955,22 @@ class TradingBot:
                         continue
 
                 if smart_tick_enabled:
+                    activation_ticks = self._smart_activation_ticks(position)
                     if (
                         not position.protection_active
-                        and position.favorable_ticks >= self.settings.smart_activation_ticks
+                        and position.favorable_ticks >= activation_ticks
                     ):
                         position.protection_active = True
                     if position.protection_active:
                         position.trailing_floor_ticks = SmartExit.trailing_floor_ticks(
                             position.peak_favorable_ticks,
-                            self.settings.smart_profit_floor_ticks,
+                            self._smart_floor_ticks(position),
                             self.settings.smart_trail_percent,
                             self.settings.smart_min_distance_ticks,
                         )
                         if (
                             position.favorable_ticks <= position.trailing_floor_ticks
-                            and position.peak_favorable_ticks >= self.settings.smart_activation_ticks
+                            and position.peak_favorable_ticks >= activation_ticks
                         ):
                             self._schedule_position_sell(position, "trailing_tick_floor")
                             continue
@@ -3671,9 +4016,9 @@ class TradingBot:
             # minimum. Tick mode uses net favorable underlying ticks; amount mode
             # uses floating P/L. Market movement can still cause exit slippage.
             if self.settings.take_profit_unit == "ticks":
-                if position.entry_spot is None or position.favorable_ticks < self.settings.smart_profit_floor_ticks:
+                if position.entry_spot is None or position.favorable_ticks < self._smart_floor_ticks(position):
                     continue
-            elif position.current_profit < self.settings.smart_profit_floor:
+            elif position.current_profit < self._smart_floor_amount(position):
                 continue
 
             if (
@@ -3843,6 +4188,69 @@ class TradingBot:
         target,score=AdaptiveTakeProfit.target(direction,signal_metrics,self.settings.take_profit,self.settings.take_profit_max);self.last_selected_take_profit=target;self.last_selected_take_profit_ticks=0;self.last_signal_strength=score;return target,score,0
 
 
+    def _risk_plan(self, stake: Optional[Decimal] = None) -> RiskPlan:
+        return RiskReward.plan(
+            self.settings,
+            self.money.slot_stake if stake is None else stake,
+            self.money.effective_capital,
+            self.last_quote,
+        )
+
+    def _risk_plan_text(self, plan: RiskPlan) -> str:
+        if plan.unit == "ticks":
+            text = (
+                f"{RiskReward.label(plan.ratio)} | SL {plan.risk_ticks:g} ticks / TP {plan.reward_ticks:g} ticks"
+                f" (~-{plan.risk_amount} / +{plan.reward_amount} {self.currency})"
+                f" | server backup SL {plan.server_stop_loss or 'OFF'} TP {plan.server_take_profit}"
+            )
+        else:
+            ticks = f" (~{plan.risk_ticks:.1f} / {plan.reward_ticks:.1f} ticks)" if plan.money_per_tick else ""
+            text = (
+                f"{RiskReward.label(plan.ratio)} | SL -{plan.risk_amount} / TP +{plan.reward_amount} {self.currency}{ticks}"
+            )
+        if self.settings.rr_breakeven_r > 0:
+            if plan.unit == "ticks":
+                text += f" | lock +{plan.lock_ticks:g} ticks after +{plan.lock_trigger_ticks:g} ticks"
+            else:
+                text += f" | lock +{plan.lock_profit} after +{plan.lock_trigger}"
+        return text + f" | break-even win rate {plan.break_even_win_rate}%"
+
+    def _attach_risk_plan(self, position: TradePosition, plan: RiskPlan) -> None:
+        position.rr_active = True
+        position.rr_ratio = plan.ratio
+        position.risk_amount = plan.risk_amount
+        position.reward_amount = plan.reward_amount
+        position.risk_ticks = plan.risk_ticks
+        position.reward_ticks = plan.reward_ticks
+        position.rr_lock_trigger = plan.lock_trigger
+        position.rr_lock_profit = plan.lock_profit
+        position.rr_lock_trigger_ticks = plan.lock_trigger_ticks
+        position.rr_lock_ticks = plan.lock_ticks
+
+    # Smart/Hybrid trailing levels. With the Risk:Reward manager the levels are
+    # expressed in R and frozen per position: trailing starts at the profit
+    # lock trigger (or +1R when the lock is off) and never protects less than
+    # the locked profit.
+    def _smart_activation_amount(self, position: TradePosition) -> Decimal:
+        if position.rr_active and position.risk_amount > 0:
+            return position.rr_lock_trigger if position.rr_lock_trigger > 0 else position.risk_amount
+        return self.settings.smart_activation
+
+    def _smart_floor_amount(self, position: TradePosition) -> Decimal:
+        if position.rr_active and position.risk_amount > 0:
+            return position.rr_lock_profit
+        return self.settings.smart_profit_floor
+
+    def _smart_activation_ticks(self, position: TradePosition) -> float:
+        if position.rr_active and position.risk_ticks > 0 and position.take_profit_unit == "ticks":
+            return position.rr_lock_trigger_ticks if position.rr_lock_trigger_ticks > 0 else position.risk_ticks
+        return float(self.settings.smart_activation_ticks)
+
+    def _smart_floor_ticks(self, position: TradePosition) -> float:
+        if position.rr_active and position.risk_ticks > 0 and position.take_profit_unit == "ticks":
+            return position.rr_lock_ticks
+        return float(self.settings.smart_profit_floor_ticks)
+
     async def _open_single_trade(
         self,
         direction: str,
@@ -3855,9 +4263,22 @@ class TradingBot:
             LOGGER.info("Entry cancelled before proposal because graceful stop is active")
             return
         selected_take_profit, signal_strength, selected_take_profit_ticks = self._select_take_profit(direction, signal_snapshot)
+        server_stop_loss = self.settings.server_stop_loss
+        risk_plan: Optional[RiskPlan] = None
+        if self.settings.rr_enabled:
+            # The Risk:Reward bracket replaces the TP selection and the
+            # emergency loss cap so the stop/target keep the chosen ratio.
+            risk_plan = self._risk_plan(stake)
+            selected_take_profit = risk_plan.server_take_profit
+            selected_take_profit_ticks = (
+                RiskReward.ceil_ticks(risk_plan.reward_ticks) if risk_plan.unit == "ticks" else 0
+            )
+            server_stop_loss = risk_plan.server_stop_loss
+            if risk_plan.note:
+                LOGGER.info("RISK MANAGER | %s", risk_plan.note)
         limit_order = {"take_profit": float(selected_take_profit)}
-        if self.settings.server_stop_loss > 0:
-            limit_order["stop_loss"] = float(self.settings.server_stop_loss)
+        if server_stop_loss > 0:
+            limit_order["stop_loss"] = float(server_stop_loss)
         proposal_request = {
             "proposal": 1,
             "amount": float(stake),
@@ -3874,6 +4295,12 @@ class TradingBot:
             proposal_response = await self.client.request(proposal_request)
         except Exception as exc:
             self._write_entry_diagnostic("proposal_error", "proposal_request_failed", direction, {"error": f"{type(exc).__name__}: {exc}"[:500]})
+            if risk_plan is not None and isinstance(exc, DerivAPIError):
+                LOGGER.error(
+                    "RISK MANAGER | Deriv rejected the bracket SL=%s TP=%s %s: %s. "
+                    "If the stop is too small for Deriv's minimum, raise the risk per trade or the stake.",
+                    limit_order.get("stop_loss", "none"), limit_order.get("take_profit"), self.currency, exc,
+                )
             raise
         proposal = proposal_response.get("proposal") or {}
         self._write_entry_diagnostic("proposal_ok", "proposal_received", direction, {"has_id": bool(proposal.get("id"))})
@@ -3904,6 +4331,8 @@ class TradingBot:
             (f"{selected_take_profit_ticks} ticks (server {selected_take_profit})" if selected_take_profit_ticks else selected_take_profit),
             signal_strength * 100.0,
         )
+        if risk_plan is not None:
+            LOGGER.info("RISK MANAGER | %s", self._risk_plan_text(risk_plan))
         self._write_entry_diagnostic("buy_request", "sending_buy", direction, {"batch_number": batch_number, "batch_total": batch_total})
         try:
             buy_response = await self.client.request(
@@ -3931,7 +4360,10 @@ class TradingBot:
             entry_sources=str(signal_snapshot.get("ensemble_sources", "")),
             entry_regime=str(signal_snapshot.get("ensemble_regime", "")),
             entry_vote_summary=str(signal_snapshot.get("ensemble_vote_summary", "")),
+            stop_loss=server_stop_loss if server_stop_loss > 0 else Decimal("0"),
         )
+        if risk_plan is not None:
+            self._attach_risk_plan(position, risk_plan)
         self.active_positions[position.contract_id] = position
         self._write_entry_diagnostic(
             "buy_success",
@@ -4004,27 +4436,41 @@ class TradingBot:
             # Profit protection activation is evaluated before loss-guard ownership
             # so a trade that has already become a protected winner is not treated
             # as a loss candidate on a small giveback.
+            activation_amount = self._smart_activation_amount(position)
             if (
                 mode in {"smart", "hybrid"}
                 and self.settings.take_profit_unit == "amount"
-                and profit >= self.settings.smart_activation
+                and profit >= activation_amount
             ):
                 position.protection_active = True
 
             if self._evaluate_smart_loss_profit(position, profit):
                 return
 
+            if position.rr_active and position.take_profit_unit == "amount" and not position.closing_requested:
+                # Deriv holds the real stop at -1R. This local check is only a
+                # fallback if an update shows the level was crossed first.
+                if position.risk_amount > 0 and profit <= -position.risk_amount:
+                    self._schedule_position_sell(position, "rr_stop_loss_fallback")
+                    return
+                if mode in {"fixed", "adaptive"} and position.rr_lock_trigger > 0:
+                    if position.peak_profit >= position.rr_lock_trigger:
+                        position.rr_lock_armed = True
+                    if position.rr_lock_armed and profit <= position.rr_lock_profit:
+                        self._schedule_position_sell(position, "rr_profit_lock")
+                        return
+
             if mode in {"smart", "hybrid"}:
                 if self.settings.take_profit_unit == "amount" and position.protection_active:
                     position.trailing_floor = SmartExit.trailing_floor(
                         position.peak_profit,
-                        self.settings.smart_profit_floor,
+                        self._smart_floor_amount(position),
                         self.settings.smart_trail_percent,
                         self.settings.smart_min_distance,
                     )
                     if (
                         profit <= position.trailing_floor
-                        and position.peak_profit >= self.settings.smart_activation
+                        and position.peak_profit >= activation_amount
                     ):
                         self._schedule_position_sell(position, "trailing_profit_floor")
                         return
@@ -4202,7 +4648,11 @@ class TradingBot:
             )
 
         if not position.closing_reason:
-            if profit <= 0:
+            if position.rr_active and position.stop_loss > 0 and profit <= 0:
+                position.closing_reason = "rr_server_stop_loss"
+            elif position.rr_active and profit > 0 and profit >= position.take_profit:
+                position.closing_reason = "rr_server_take_profit"
+            elif profit <= 0:
                 position.closing_reason = "platform_stopout_or_settlement"
             elif self.settings.take_profit_mode in {"smart", "hybrid"}:
                 position.closing_reason = (
@@ -4223,6 +4673,12 @@ class TradingBot:
             self.stats.losses += 1
             self.stats.consecutive_losses += 1
 
+        position.current_profit = profit
+        r_multiple = position.r_multiple
+        if r_multiple is not None:
+            self.stats.total_r += Decimal(str(round(r_multiple, 4)))
+            self.stats.r_trades += 1
+
         self.money.register_result(profit, positions_are_flat=not self.active_positions)
         if not self.active_positions and not self.batch_opening and self.opening_count == 0:
             self._apply_pending_flat_settings()
@@ -4236,6 +4692,7 @@ class TradingBot:
                 "profit": float(profit),
                 "result": result,
                 "exit_reason": position.closing_reason,
+                "r_multiple": round(r_multiple, 3) if r_multiple is not None else None,
                 "entry_sources": position.entry_sources,
                 "entry_regime": position.entry_regime,
                 "entry_vote_summary": position.entry_vote_summary,
@@ -4252,6 +4709,11 @@ class TradingBot:
             position.closing_reason,
             self.stats.realized_profit,
         )
+        if r_multiple is not None:
+            LOGGER.info(
+                "RISK MANAGER | trade %+.2fR | session %+.2fR over %d trade(s), average %+.2fR",
+                r_multiple, float(self.stats.total_r), self.stats.r_trades, float(self.stats.average_r),
+            )
 
         self._apply_stop_rules(profit)
         self.strategy.reset_confirmation()
@@ -4297,6 +4759,12 @@ class TradingBot:
             )
         if self.settings.win_target > 0 and self.stats.wins >= self.settings.win_target:
             self._request_stop(f"Win target reached: {self.stats.wins}")
+        if self.settings.rr_enabled and self.stats.r_trades > 0:
+            total_r = self.stats.total_r.quantize(Decimal("0.01"))
+            if self.settings.rr_session_stop_r > 0 and total_r <= -self.settings.rr_session_stop_r:
+                self._request_stop(f"Session R stop reached: {total_r}R")
+            elif self.settings.rr_session_target_r > 0 and total_r >= self.settings.rr_session_target_r:
+                self._request_stop(f"Session R target reached: +{total_r}R")
         if self.money.effective_capital <= 0:
             self._request_stop("Allocated session capital has been exhausted")
         elif self.settings.compound and not self.active_positions:
@@ -4318,6 +4786,49 @@ class TradingBot:
         elif not self.batch_opening:
             self.shutdown.set()
 
+    TRADE_LOG_FIELDS = (
+        "closed_at_utc", "account", "symbol", "contract_id", "direction", "stake", "currency",
+        "multiplier", "take_profit", "take_profit_unit", "take_profit_ticks", "entry_spot",
+        "max_favorable_ticks", "worst_ticks", "entry_pattern", "exit_mode", "exit_reason",
+        "peak_profit", "trailing_floor", "trailing_floor_ticks", "worst_profit",
+        "smart_loss_triggered", "smart_loss_trigger_count", "smart_loss_reset_count",
+        "smart_loss_trough", "profit", "result", "status", "duration_seconds", "session_profit",
+        "account_balance_last_seen", "split_count", "max_open_trades", "compound",
+        "split_delay_seconds", "strategy", "instance_id",
+        # V2.28 Risk:Reward columns (appended so older readers keep working).
+        "rr_enabled", "rr_ratio", "risk_amount", "reward_amount", "risk_ticks", "reward_ticks",
+        "stop_loss", "rr_lock_armed", "r_multiple", "session_r",
+    )
+
+    @classmethod
+    def _ensure_trade_log_header(cls, path: Path) -> list[str]:
+        """Return the header to write with, upgrading an older file in place.
+
+        Older files lack the V2.28 columns. Rows are rewritten once with blank
+        values for the new columns; any unknown legacy columns are preserved.
+        """
+        fields = list(cls.TRADE_LOG_FIELDS)
+        if not path.exists() or path.stat().st_size == 0:
+            return fields
+        with path.open("r", newline="", encoding="utf-8") as handle:
+            header = next(csv.reader(handle), [])
+        if header == fields:
+            return fields
+        merged = fields + [name for name in header if name and name not in fields]
+        if header == merged:
+            return merged
+        with path.open("r", newline="", encoding="utf-8") as handle:
+            rows = list(csv.DictReader(handle))
+        tmp = path.with_suffix(path.suffix + ".upgrade.tmp")
+        with tmp.open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(handle, fieldnames=merged, extrasaction="ignore")
+            writer.writeheader()
+            for row in rows:
+                writer.writerow({name: row.get(name, "") or "" for name in merged})
+        os.replace(tmp, path)
+        LOGGER.info("Trade history upgraded with Risk:Reward columns: %s", path.name)
+        return merged
+
     def _write_trade_log(
         self,
         position: TradePosition,
@@ -4327,92 +4838,67 @@ class TradingBot:
     ) -> None:
         closed_at = datetime.now(timezone.utc)
         duration_seconds = max(0.0, (closed_at - position.opened_at).total_seconds())
-        new_file = not LOG_PATH.exists()
+        try:
+            fields = self._ensure_trade_log_header(LOG_PATH)
+        except Exception as exc:
+            LOGGER.warning("Trade history header check failed; appending with current columns: %s", exc)
+            fields = list(self.TRADE_LOG_FIELDS)
+        r_multiple = position.r_multiple
+        row = {
+            "closed_at_utc": closed_at.isoformat(),
+            "account": self.account_id,
+            "symbol": self.symbol,
+            "contract_id": position.contract_id,
+            "direction": position.direction,
+            "stake": str(position.stake),
+            "currency": self.currency,
+            "multiplier": self.settings.multiplier,
+            "take_profit": str(position.take_profit),
+            "take_profit_unit": position.take_profit_unit,
+            "take_profit_ticks": position.take_profit_ticks,
+            "entry_spot": position.entry_spot if position.entry_spot is not None else "",
+            "max_favorable_ticks": f"{position.peak_favorable_ticks:.3f}",
+            "worst_ticks": f"{position.worst_ticks:.3f}",
+            "entry_pattern": position.entry_pattern,
+            "exit_mode": self.settings.take_profit_mode,
+            "exit_reason": position.closing_reason,
+            "peak_profit": str(position.peak_profit),
+            "trailing_floor": str(position.trailing_floor),
+            "trailing_floor_ticks": f"{position.trailing_floor_ticks:.3f}",
+            "worst_profit": str(position.worst_profit),
+            "smart_loss_triggered": position.loss_guard_ever_triggered,
+            "smart_loss_trigger_count": position.loss_guard_trigger_count,
+            "smart_loss_reset_count": position.loss_guard_reset_count,
+            "smart_loss_trough": str(position.loss_guard_trough),
+            "profit": str(profit),
+            "result": result,
+            "status": status,
+            "duration_seconds": f"{duration_seconds:.3f}",
+            "session_profit": str(self.stats.realized_profit),
+            "account_balance_last_seen": str(self.account_balance),
+            "split_count": self.settings.split_count,
+            "max_open_trades": self.settings.max_open_trades,
+            "compound": self.settings.compound,
+            "split_delay_seconds": self.settings.split_delay_seconds,
+            "strategy": self.settings.strategy_mode,
+            "instance_id": self.instance_id,
+            "rr_enabled": position.rr_active,
+            "rr_ratio": str(position.rr_ratio) if position.rr_active else "",
+            "risk_amount": str(position.risk_amount) if position.rr_active else "",
+            "reward_amount": str(position.reward_amount) if position.rr_active else "",
+            "risk_ticks": f"{position.risk_ticks:.3f}" if position.rr_active else "",
+            "reward_ticks": f"{position.reward_ticks:.3f}" if position.rr_active else "",
+            "stop_loss": str(position.stop_loss) if position.stop_loss > 0 else "",
+            "rr_lock_armed": position.rr_lock_armed if position.rr_active else "",
+            "r_multiple": f"{r_multiple:.3f}" if r_multiple is not None else "",
+            "session_r": f"{self.stats.total_r:.3f}" if self.stats.r_trades else "",
+        }
+        new_file = not LOG_PATH.exists() or LOG_PATH.stat().st_size == 0
         with LOG_PATH.open("a", newline="", encoding="utf-8") as handle:
-            writer = csv.writer(handle)
+            writer = csv.DictWriter(handle, fieldnames=fields, extrasaction="ignore")
             if new_file:
-                writer.writerow(
-                    [
-                        "closed_at_utc",
-                        "account",
-                        "symbol",
-                        "contract_id",
-                        "direction",
-                        "stake",
-                        "currency",
-                        "multiplier",
-                        "take_profit",
-                        "take_profit_unit",
-                        "take_profit_ticks",
-                        "entry_spot",
-                        "max_favorable_ticks",
-                        "worst_ticks",
-                        "entry_pattern",
-                        "exit_mode",
-                        "exit_reason",
-                        "peak_profit",
-                        "trailing_floor",
-                        "trailing_floor_ticks",
-                        "worst_profit",
-                        "smart_loss_triggered",
-                        "smart_loss_trigger_count",
-                        "smart_loss_reset_count",
-                        "smart_loss_trough",
-                        "profit",
-                        "result",
-                        "status",
-                        "duration_seconds",
-                        "session_profit",
-                        "account_balance_last_seen",
-                        "split_count",
-                        "max_open_trades",
-                        "compound",
-                        "split_delay_seconds",
-                        "strategy",
-                        "instance_id",
-                    ]
-                )
-            writer.writerow(
-                [
-                    closed_at.isoformat(),
-                    self.account_id,
-                    self.symbol,
-                    position.contract_id,
-                    position.direction,
-                    str(position.stake),
-                    self.currency,
-                    self.settings.multiplier,
-                    str(position.take_profit),
-                    position.take_profit_unit,
-                    position.take_profit_ticks,
-                    position.entry_spot if position.entry_spot is not None else "",
-                    f"{position.peak_favorable_ticks:.3f}",
-                    f"{position.worst_ticks:.3f}",
-                    position.entry_pattern,
-                    self.settings.take_profit_mode,
-                    position.closing_reason,
-                    str(position.peak_profit),
-                    str(position.trailing_floor),
-                    f"{position.trailing_floor_ticks:.3f}",
-                    str(position.worst_profit),
-                    position.loss_guard_ever_triggered,
-                    position.loss_guard_trigger_count,
-                    position.loss_guard_reset_count,
-                    str(position.loss_guard_trough),
-                    str(profit),
-                    result,
-                    status,
-                    f"{duration_seconds:.3f}",
-                    str(self.stats.realized_profit),
-                    str(self.account_balance),
-                    self.settings.split_count,
-                    self.settings.max_open_trades,
-                    self.settings.compound,
-                    self.settings.split_delay_seconds,
-                    self.settings.strategy_mode,
-                    self.instance_id,
-                ]
-            )
+                writer.writeheader()
+            writer.writerow({name: row.get(name, "") for name in fields})
 
     async def _dashboard_loop(self) -> None:
         try:
@@ -4457,7 +4943,7 @@ class TradingBot:
         lines = [
             "",
             "=" * 72,
-            f"DR EXPLOIT CONTROL V2.22 | {mode} | {state}",
+            f"DR EXPLOIT CONTROL V{BOT_VERSION} | {mode} | {state}",
             "=" * 72,
             f"Account: {self.account_id:<18} Balance: {self.account_balance} {self.currency}",
             f"Market:  {self.symbol:<18} Quote: {self.last_quote if self.last_quote is not None else '-'}",
@@ -4636,7 +5122,7 @@ def collect_session_settings(
     currency: str,
 ) -> SessionSettings:
     print("\n" + "=" * 72)
-    print("DR EXPLOIT CONTROL V2.22 — SESSION SETUP")
+    print(f"DR EXPLOIT CONTROL V{BOT_VERSION} — SESSION SETUP")
     print("=" * 72)
     print(f"Account balance: {account_balance} {currency}")
     print("Only the amount you allocate below will be used to calculate trade sizes.")
@@ -4806,6 +5292,32 @@ def collect_session_settings(
 
     take_profit_unit=str(getattr(args,"take_profit_unit",None) or "amount").lower()
     if take_profit_unit not in {"amount","ticks"}:raise RuntimeError("Take-profit unit must be amount or ticks.")
+
+    rr_enabled = bool(getattr(args, "rr_enabled", None))
+    rr_risk_basis = str(getattr(args, "rr_risk_basis", None) or "amount").lower()
+    rr_ratio = parse_decimal(args.rr_ratio, "Risk:Reward ratio") if getattr(args, "rr_ratio", None) is not None else Decimal("3")
+    rr_risk_value = (
+        parse_decimal(args.rr_risk_value, "Risk per trade") if getattr(args, "rr_risk_value", None) is not None else Decimal("1.00")
+    )
+    rr_breakeven_r = (
+        parse_decimal(args.rr_breakeven_r, "Profit lock trigger (R)", allow_zero=True)
+        if getattr(args, "rr_breakeven_r", None) is not None else Decimal("0")
+    )
+    rr_lock_r = (
+        parse_decimal(args.rr_lock_r, "Locked profit (R)", allow_zero=True)
+        if getattr(args, "rr_lock_r", None) is not None else Decimal("0.10")
+    )
+    rr_session_stop_r = (
+        parse_decimal(args.rr_session_stop_r, "Session R stop", allow_zero=True)
+        if getattr(args, "rr_session_stop_r", None) is not None else Decimal("0")
+    )
+    rr_session_target_r = (
+        parse_decimal(args.rr_session_target_r, "Session R target", allow_zero=True)
+        if getattr(args, "rr_session_target_r", None) is not None else Decimal("0")
+    )
+    if rr_enabled:
+        # The risk basis decides how the bracket is measured.
+        take_profit_unit = "ticks" if rr_risk_basis == "ticks" else "amount"
     take_profit_ticks=max(1,int(getattr(args,"take_profit_ticks",None) or 3));take_profit_ticks_max=max(take_profit_ticks,int(getattr(args,"take_profit_ticks_max",None) or take_profit_ticks))
     tick_tp_server_backup=parse_decimal(args.tick_tp_server_backup,"Tick TP server backup") if getattr(args,"tick_tp_server_backup",None) is not None else Decimal("2.00")
 
@@ -5051,7 +5563,19 @@ def collect_session_settings(
         smart_loss_opposite_signal=smart_loss_opposite_signal,
         smart_loss_rescue_profit=smart_loss_rescue_profit,
         trades_per_signal=trades_per_signal,
+        rr_enabled=rr_enabled,
+        rr_ratio=rr_ratio,
+        rr_risk_basis=rr_risk_basis,
+        rr_risk_value=rr_risk_value,
+        rr_breakeven_r=rr_breakeven_r,
+        rr_lock_r=rr_lock_r,
+        rr_session_stop_r=rr_session_stop_r,
+        rr_session_target_r=rr_session_target_r,
     )
+    try:
+        RiskReward.validate(settings, calculated_stake)
+    except ValueError as exc:
+        raise RuntimeError(f"Risk:Reward manager: {exc}") from exc
 
     print("\nSession preview")
     print("-" * 72)
@@ -5114,6 +5638,19 @@ def collect_session_settings(
         else:
             print(f"Exit mode:           FIXED TP {settings.take_profit} {currency} per trade")
     print(f"Multiplier:          x{settings.multiplier}")
+    if settings.rr_enabled:
+        preview_plan = RiskReward.plan(settings, calculated_stake, settings.capital, None)
+        if preview_plan.unit == "ticks":
+            print(
+                f"Risk manager:        {RiskReward.label(settings.rr_ratio)} | SL {preview_plan.risk_ticks:g} ticks"
+                f" / TP {preview_plan.reward_ticks:g} ticks"
+            )
+        else:
+            print(
+                f"Risk manager:        {RiskReward.label(settings.rr_ratio)} | SL -{preview_plan.risk_amount}"
+                f" / TP +{preview_plan.reward_amount} {currency} per trade"
+            )
+        print(f"Break-even win rate: {preview_plan.break_even_win_rate}%")
     print(f"Server stop loss:    {settings.server_stop_loss if settings.server_stop_loss > 0 else 'OFF'}")
     if settings.smart_loss_enabled:
         print(
@@ -5171,7 +5708,7 @@ def load_env_file(path: Path) -> None:
 
 
 def build_argument_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Dr Exploit Control V2.22")
+    parser = argparse.ArgumentParser(description=f"Dr Exploit Control V{BOT_VERSION}")
     parser.add_argument("--app-id", help="Deriv App ID; otherwise DERIV_APP_ID")
     parser.add_argument("--account-id", help="Deriv Options account ID; otherwise DERIV_ACCOUNT_ID")
     parser.add_argument("--symbol", help="Underlying symbol; otherwise DERIV_SYMBOL")
@@ -5219,6 +5756,17 @@ def build_argument_parser() -> argparse.ArgumentParser:
     loss_opp_group.add_argument("--no-smart-loss-opposite-signal", dest="smart_loss_opposite_signal", action="store_false")
     parser.set_defaults(smart_loss_opposite_signal=None)
     parser.add_argument("--smart-loss-rescue-profit", default=None, help="Positive P/L that closes a recovered watched trade; 0 disables")
+    rr_group = parser.add_mutually_exclusive_group()
+    rr_group.add_argument("--risk-reward", dest="rr_enabled", action="store_true", help="Enable the Risk:Reward manager")
+    rr_group.add_argument("--no-risk-reward", dest="rr_enabled", action="store_false")
+    parser.set_defaults(rr_enabled=None)
+    parser.add_argument("--rr-ratio", default=None, help="Reward multiple, e.g. 3 for 1:3")
+    parser.add_argument("--rr-risk-basis", choices=RR_RISK_BASES, default=None)
+    parser.add_argument("--rr-risk-value", default=None, help="Risk per trade: amount, percent or ticks depending on basis")
+    parser.add_argument("--rr-breakeven-r", default=None, help="Arm the profit lock after +X R; 0 disables")
+    parser.add_argument("--rr-lock-r", default=None, help="Profit kept once the lock is armed, in R")
+    parser.add_argument("--rr-session-stop-r", default=None, help="Stop new entries at -X R for the session; 0 disables")
+    parser.add_argument("--rr-session-target-r", default=None, help="Stop new entries at +X R for the session; 0 disables")
 
     parser.add_argument("--capital", help="Session capital allocation")
     parser.add_argument("--split", type=int, choices=range(1, 51), metavar="1-50")

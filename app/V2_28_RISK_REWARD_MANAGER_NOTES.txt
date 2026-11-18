@@ -1,0 +1,80 @@
+Dr Exploit Control Nexus V2.28 — Risk:Reward Manager
+
+NEW: RISK:REWARD MANAGER (Multiplier engine, Session setup page)
+- One-click ratios: 1:1, 1:1.5, 1:2, 1:3, 1:4, 1:5, or any custom 1:0.25 – 1:20.
+- Choose how 1R (the most one trade may lose) is measured:
+    Fixed amount per trade ($)
+    % of the stake per split (follows compounding)
+    % of session capital (classic "risk 1% per trade")
+    Step ticks against the trade (price-distance bracket)
+- Every new trade gets its own stop loss (1R) and take profit (ratio x R),
+  calculated from its real stake when the order is sent. No manual TP/SL maths.
+- Money brackets are attached to the Deriv order (limit_order stop_loss and
+  take_profit), so they keep working if this PC disconnects.
+- Tick brackets are watched locally tick by tick; Deriv-side backups are placed
+  1.5x further away as a disconnect safety net.
+- Open trades keep the bracket they opened with. Changing the ratio live only
+  affects new trades.
+
+HOW IT WORKS WITH THE EXISTING EXITS
+- Fixed / Adaptive: TP = the ratio target. The adaptive range is replaced.
+- Smart / Hybrid: Deriv closes at the full target; trailing protection starts
+  at the profit-lock trigger (or +1R when the lock is off) and never protects
+  less than the locked profit. Giveback %, min distance and Hybrid reversal
+  rules still apply.
+- The Emergency server loss cap is replaced by the 1R stop for new trades.
+- Smart Loss Guard still works; the panel warns if its hard cap is tighter
+  than 1R.
+
+PROFIT LOCK (optional)
+- Arm at +1R / +1.5R / +2R (or any value below the target).
+- Once armed, the trade is closed if it falls back to the kept profit
+  (default +0.10R, roughly break-even after commission).
+
+SESSION LIMITS IN R (optional)
+- Stop new entries at -X R or at +X R for the session (e.g. -3R / +6R).
+- Works alongside the existing money profit target / loss limit.
+
+LIVE CALCULATOR (no number crunching)
+- Shows the next trade's SL and TP in money and estimated Step ticks,
+  risk as % of stake, break-even win rate, max open risk (max open x 1R),
+  and expectancy at your current history win rate.
+- Ratio comparison table for 1:1 – 1:5: target, win rate needed, expectancy.
+  Tap a row to use it.
+- Plain-language notes explain exactly what the bot will do with the setup.
+
+R-MULTIPLE TRACKING
+- trades_v2.csv gains rr_enabled, rr_ratio, risk_amount, reward_amount,
+  risk_ticks, reward_ticks, stop_loss, rr_lock_armed, r_multiple and session_r.
+  Older history files are upgraded in place once (old rows keep their values;
+  the new columns are blank).
+- Multiplier history shows Total R, Average R per trade, R win rate and
+  best/worst R. The console logs each trade's R and the running session R.
+- Advanced dashboard positions show each trade's SL/TP bracket and live R
+  (🔒 = profit lock armed).
+
+ADVANCED DASHBOARD
+- Protection tab: Risk:Reward on/off, ratio, basis, risk value, lock, keep —
+  "Apply Risk:Reward live" changes the bracket for new trades without a restart.
+
+MULTIPLIER LAB
+- Every tester can use its own Risk:Reward ratio and risk per trade.
+- "+ Ratio test 1:1–1:4" adds four DEMO testers with the same strategy and
+  stake that differ only in ratio, so you can measure which ratio pays.
+- Fixed: Multiplier Lab no longer counts Rise/Fall Lab tester cards as its own
+  (previously "Run comparison" could start extra unintended EMA/RSI testers
+  and the 8-tester limit was reached early).
+
+SAFETY / COMPATIBILITY
+- Off by default. Existing presets and sessions behave exactly as before.
+- AI Trade forces the manager off so it runs only exits validated in the Lab.
+- Rise/Fall (fixed-payout contracts) is unchanged: Risk:Reward does not apply.
+- Higher ratios usually lower the win rate. Test on Demo first. Deriv
+  commission is charged on every trade, so very small brackets lose more edge.
+  If Deriv rejects a stop as too small, the console says so; raise the risk
+  per trade or the stake.
+
+INSTALL
+V2.28 upgrades the existing Control Nexus installation in place and preserves
+credentials, presets, history, lab runs and optimizer settings through the
+existing installer backup/restore flow.

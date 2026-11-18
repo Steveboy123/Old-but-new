@@ -168,7 +168,7 @@ def list_ollama_models(ollama_url: str, timeout: float = 10.0) -> Dict[str, Any]
     base = normalize_ollama_url(ollama_url)
     request = urllib.request.Request(
         base + "/api/tags",
-        headers={"Accept": "application/json", "User-Agent": "ControlNexus-Ollama-Optimizer/2.27"},
+        headers={"Accept": "application/json", "User-Agent": "ControlNexus-Ollama-Optimizer/2.28"},
         method="GET",
     )
     try:
@@ -321,7 +321,7 @@ def call_ollama_optimizer(
             data=json.dumps(payload).encode("utf-8"),
             headers={
                 "Content-Type": "application/json", "Accept": "application/json",
-                "User-Agent": "ControlNexus-Ollama-Optimizer/2.27",
+                "User-Agent": "ControlNexus-Ollama-Optimizer/2.28",
             },
             method="POST",
         )

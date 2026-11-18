@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dr Exploit Control V2.27 - dedicated Rise/Fall engine for Step 100 Index.
+"""Dr Exploit Control V2.28 - dedicated Rise/Fall engine for Step 100 Index.
 
 This engine intentionally stays separate from the multiplier engine. Deriv
 Rise/Fall contracts use CALL/PUT and settle at their configured expiry. The
@@ -620,7 +620,7 @@ class RiseFallBot:
 
     def telemetry(self) -> Dict[str, Any]:
         return {
-            "version":"2.27","engine":"rise_fall","instance":INSTANCE_ID,
+            "version":"2.28","engine":"rise_fall","instance":INSTANCE_ID,
             "running":not self.shutdown.is_set(),"stop_requested":self.stop_requested,"entries_paused":self.entries_paused,
             "runtime_seconds":int(time.time()-self.started),"account_balance":float(self.balance),"currency":self.currency,
             "symbol":self.symbol,"symbol_name":self.symbol_name,"quote":self.last_quote,"epoch":self.last_epoch,
@@ -690,7 +690,7 @@ class RiseFallBot:
     async def run(self) -> None:
         await self.resolve_symbol(); await self.check_contracts(); await self.seed(); await self.subscribe()
         self.control_task=asyncio.create_task(self.control_loop(),name="rf-control")
-        print("DR EXPLOIT CONTROL V2.27 | RISE/FALL | RUNNING",flush=True)
+        print("DR EXPLOIT CONTROL V2.28 | RISE/FALL | RUNNING",flush=True)
         print(f"Rise/Fall market: {self.symbol_name} [{self.symbol}] | CALL/PUT | duration={self.settings.duration}{self.settings.duration_unit}",flush=True)
         self.write_telemetry(force=True)
         try:

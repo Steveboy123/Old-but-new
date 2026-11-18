@@ -1,7 +1,7 @@
 {
   "name": "Dr Exploit Control Nexus",
   "short_name": "Control Nexus",
-  "description": "Local Windows control dashboard for Dr Exploit Control Nexus V2.27 with Simple/Advanced dashboards, separate Multiplier and Rise/Fall workspaces, dual self-hosted Ollama AI Optimizer for Rise/Fall and Multiplier with Advisor, Auto Lab, Adaptive validation, guarded AI Trade plus the dedicated 2T Rise/Fall Auto Lab, portable presets and optimization exports, zoned dockable Command Deck, account API intelligence, live runtime control, configurable operator layouts, full presets, responsive mobile/desktop UI, risk and commission disclosure, and lifecycle-managed backend",
+  "description": "Local Windows control dashboard for Dr Exploit Control Nexus V2.28 with a Risk:Reward manager (1:1 to 1:5 or custom), Simple/Advanced dashboards, separate Multiplier and Rise/Fall workspaces, dual self-hosted Ollama AI Optimizer for Rise/Fall and Multiplier with Advisor, Auto Lab, Adaptive validation, guarded AI Trade plus the dedicated 2T Rise/Fall Auto Lab, portable presets and optimization exports, zoned dockable Command Deck, account API intelligence, live runtime control, configurable operator layouts, full presets, responsive mobile/desktop UI, risk and commission disclosure, and lifecycle-managed backend",
   "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",

@@ -824,6 +824,14 @@ function updateSessionPreview() {
   const smartLossEnabled = Boolean(values.smart_loss_enabled);
   $$(".smart-loss-field").forEach((field) => field.classList.toggle("hidden", !smartLossEnabled));
 
+  const rrOn = Boolean(values.rr_enabled);
+  if (rrOn) {
+    // The Risk:Reward basis decides the measurement unit (ticks basis = tick bracket).
+    const forcedUnit = values.rr_risk_basis === "ticks" ? "ticks" : "amount";
+    const unitSelect = form.elements.namedItem("take_profit_unit");
+    if (unitSelect && unitSelect.value !== forcedUnit) unitSelect.value = forcedUnit;
+    values.take_profit_unit = forcedUnit;
+  }
   const exitMode=values.take_profit_mode || "fixed"; const isAdaptive=exitMode==="adaptive"; const isSmart=exitMode==="smart" || exitMode==="hybrid"; const tpUnit=values.take_profit_unit || "amount";
   $("#tpUnitField").classList.remove("hidden");
   $$(".tp-amount-field").forEach((field)=>field.classList.toggle("hidden",isSmart || tpUnit!=="amount"));
@@ -834,7 +842,13 @@ function updateSessionPreview() {
   $$(".smart-amount-field").forEach((field) => field.classList.toggle("hidden", !isSmart || tpUnit!=="amount"));
   $$(".smart-tick-field").forEach((field) => field.classList.toggle("hidden", !isSmart || tpUnit!=="ticks"));
   $$(".hybrid-only").forEach((field) => field.classList.toggle("hidden", exitMode !== "hybrid"));
+  if (rrOn) {
+    $$(".rr-replaced").forEach((field) => field.classList.add("hidden"));
+    $("#tpUnitField").classList.add("hidden");
+  }
+  $("#serverStopLossField")?.classList.toggle("rr-dimmed", rrOn);
   $("#liveConfirmationField").classList.toggle("hidden", values.mode !== "live");
+  renderRiskRewardPanel(values);
 }
 
 function formatRuntime(seconds) {
@@ -931,6 +945,7 @@ function renderStatus(status = {}) {
   $("#metricSlots").textContent = `${d.available_slots ?? 0} available`;
   $("#metricProfit").textContent = d.realized_profit ?? "0.00";
   $("#metricOpenProfit").textContent = `Open P/L ${d.open_profit ?? "0.00"}`;
+  renderRiskRewardStatus(status);
   $("#metricWinRate").textContent = `${d.win_rate ?? "0.0"}%`;
   $("#metricRecord").textContent = `${d.wins ?? 0} wins · ${d.losses ?? 0} losses`;
   $("#metricSignal").textContent = d.signal || "WAITING";
@@ -1135,6 +1150,7 @@ function renderTrades(trades) {
   $("#historyLosses").textContent = summary.losses ?? 0;
   $("#historyProfit").textContent = summary.profit ?? "0.00";
   $("#historyWinRate").textContent = `${summary.win_rate ?? "0.0"}%`;
+  renderRiskRewardHistory(summary);
 
   const rows = trades?.rows || [];
   renderTradeAnalytics(rows, summary);
@@ -1166,7 +1182,7 @@ function renderTrades(trades) {
     body.innerHTML = '<tr><td class="empty">No trades recorded</td></tr>';
     return;
   }
-  const preferred = ["closed_at_utc", "direction", "entry_pattern", "stake", "take_profit_unit", "take_profit_ticks", "take_profit", "max_favorable_ticks", "worst_ticks", "profit", "result", "exit_reason"];
+  const preferred = ["closed_at_utc", "direction", "entry_pattern", "stake", "take_profit_unit", "take_profit_ticks", "take_profit", "max_favorable_ticks", "worst_ticks", "profit", "r_multiple", "result", "exit_reason"];
   const available = Object.keys(rows[0]);
   const columns = preferred.filter((key) => available.includes(key));
   available.forEach((key) => { if (!columns.includes(key) && columns.length < 12) columns.push(key); });
@@ -1354,7 +1370,7 @@ function labDefaultValue(selector, fallback) {
 }
 
 function addLabBot(initial = {}) {
-  if ($$(".lab-bot-card").length >= 8) {
+  if ($$("#labBotBuilder .lab-bot-card").length >= 8) {
     toast("Strategy Lab supports up to 8 bots at once", "error");
     return;
   }
@@ -1391,6 +1407,10 @@ function addLabBot(initial = {}) {
       <label class="field"><span>TP ticks max</span><input data-lab-field="take_profit_ticks_max" type="number" min="1" step="1" value="${escapeHtml(initial.take_profit_ticks_max || "8")}"></label>
       <label class="field"><span>TP min/fixed</span><input data-lab-field="take_profit" type="number" min="0.10" step="0.01" value="${escapeHtml(initial.take_profit || labDefaultValue("#labDefaultTp", "0.10"))}"></label>
       <label class="field"><span>TP max</span><input data-lab-field="take_profit_max" type="number" min="0.10" step="0.01" value="${escapeHtml(initial.take_profit_max || labDefaultValue("#labDefaultTpMax", "0.30"))}"></label>
+      <label class="field"><span>Risk:Reward</span><select data-lab-field="rr_ratio">
+        ${[["", "Off"], ["1", "1:1"], ["1.5", "1:1.5"], ["2", "1:2"], ["3", "1:3"], ["4", "1:4"], ["5", "1:5"]].map(([v,l]) => `<option value="${v}" ${String(v) === String(initial.rr_ratio || "") ? "selected" : ""}>${l}</option>`).join("")}
+      </select><small>Overrides TP with a ratio bracket.</small></label>
+      <label class="field"><span>Risk / trade ($)</span><input data-lab-field="rr_risk_value" type="number" min="0.01" step="0.01" value="${escapeHtml(initial.rr_risk_value || labDefaultRiskValue())}"><small>1R stop when Risk:Reward is on.</small></label>
     </div>
     <div class="lab-bot-foot"><span class="lab-open-foot">Up to ${escapeHtml(initial.max_open || labDefaultValue("#labDefaultMaxOpen", "3"))} open</span><span>Demo only</span><span>Independent config</span></div>`;
   $("#labBotBuilder").appendChild(card);
@@ -1409,7 +1429,7 @@ function updateLabBotFoot(card) {
 }
 
 function gatherLabBots() {
-  return $$(".lab-bot-card").map((card) => {
+  return $$("#labBotBuilder .lab-bot-card").map((card) => {
     const value = (name) => card.querySelector(`[data-lab-field="${name}"]`)?.value;
     return {
       id: card.dataset.labId,
@@ -1439,8 +1459,34 @@ function gatherLabBots() {
       smart_adverse_window: 4,
       smart_opposite_signal: true,
       smart_server_take_profit: labDefaultValue("#labServerTp", "2.00"),
+      rr_enabled: Boolean(value("rr_ratio")),
+      rr_ratio: value("rr_ratio") || "3",
+      rr_risk_value: value("rr_risk_value") || labDefaultRiskValue(),
     };
   });
+}
+
+// V2.28: default lab risk = 25% of the lab stake, kept below the stake.
+function labDefaultRiskValue() {
+  const stake = toNumber(labDefaultValue("#labDefaultStake", "1.00"), 1);
+  return Math.max(0.01, Math.floor(stake * 25) / 100).toFixed(2);
+}
+
+// V2.28: clone the first tester (or Lab defaults) into 1:1 / 1:2 / 1:3 / 1:4
+// testers so the best ratio for a strategy can be measured on DEMO.
+function addLabRatioComparison() {
+  const ratios = ["1", "2", "3", "4"];
+  const free = 8 - $$("#labBotBuilder .lab-bot-card").length;
+  if (free < ratios.length) { toast(`Ratio test needs ${ratios.length} free tester slots (${Math.max(0, free)} left). Remove some testers first.`, "error"); return; }
+  const first = gatherLabBots()[0] || {};
+  const strategy = first.strategy || strategyCatalog[0]?.id || "ema_rsi";
+  const name = strategyCatalog.find((item) => item.id === strategy)?.label || strategy;
+  ratios.forEach((ratio) => addLabBot({
+    ...first, id: undefined, strategy, profile: first.profile || "balanced",
+    label: `${name} 1:${ratio}`, rr_ratio: ratio, rr_risk_value: first.rr_risk_value || labDefaultRiskValue(),
+    exit_mode: first.exit_mode || "fixed", take_profit_unit: "amount",
+  }));
+  toast(`Added 1:1–1:4 testers for ${name}. Same strategy and stake; only the ratio differs.`, "success");
 }
 
 async function startStrategyLab() {
@@ -1505,8 +1551,9 @@ function renderStrategyLab(lab = {}) {
   $("#labStopAllButton").disabled = stoppableCount === 0;
   $("#labStopAllButton").textContent = stoppableCount ? "Stop all entries" : (runningCount ? "Draining…" : "Stop all entries");
   $("#labAddBotButton").disabled = runningCount > 0;
+  if ($("#labRatioTestButton")) $("#labRatioTestButton").disabled = runningCount > 0;
   $$(".lab-remove").forEach((button) => button.disabled = runningCount > 0);
-  $$(".lab-bot-card input, .lab-bot-card select").forEach((input) => input.disabled = runningCount > 0);
+  $$("#labBotBuilder .lab-bot-card input, #labBotBuilder .lab-bot-card select").forEach((input) => input.disabled = runningCount > 0);
 
   const combined = bots.reduce((sum, bot) => sum + toNumber(bot.profit, 0), 0);
   $("#labActiveCount").textContent = `${runningCount} active / ${bots.length} loaded`;
@@ -1578,6 +1625,7 @@ async function poll() {
     renderStatus(statusData.status);
     renderTrades(statusData.trades);
     renderAdvancedOps(statusData.status, statusData.trades);
+    renderRiskRewardPanel();
     renderStrategyLab(statusData.lab || {});
     renderRfLab(statusData.rise_fall_lab || {});
     renderAIOptimizer(statusData.ai_optimizer || {});
@@ -1881,7 +1929,7 @@ function telemetrySettings(status = latestAdvancedStatus) {
 
 function runtimeSettingsPayloadFromSessionForm() {
   const raw = formToObject($("#sessionForm"));
-  const keys = ["capital","split","max_open","trades_per_signal","split_delay","compound","loss_policy","loss_count","profit_target","loss_limit","win_target","take_profit_mode","take_profit_unit","take_profit","take_profit_max","take_profit_ticks","take_profit_ticks_max","tick_tp_server_backup","smart_activation","smart_profit_floor","smart_trail_percent","smart_min_distance","smart_activation_ticks","smart_profit_floor_ticks","smart_min_distance_ticks","smart_adverse_ticks","smart_adverse_window","smart_opposite_signal","smart_server_take_profit","server_stop_loss","smart_loss_enabled","smart_loss_soft_trigger","smart_loss_reset_level","smart_loss_hard_cap","smart_loss_grace_ticks","smart_loss_max_watch_ticks","smart_loss_adverse_ticks","smart_loss_adverse_window","smart_loss_opposite_signal","smart_loss_rescue_profit","multiplier","ensemble_policy","ensemble_min_votes","ensemble_memory_ticks","ensemble_confirmations","ensemble_cooldown_ticks","ensemble_regime_lookback","ensemble_trend_threshold","ensemble_weight_threshold","ensemble_conflict_margin"];
+  const keys = ["capital","split","max_open","trades_per_signal","split_delay","compound","loss_policy","loss_count","profit_target","loss_limit","win_target","take_profit_mode","take_profit_unit","take_profit","take_profit_max","take_profit_ticks","take_profit_ticks_max","tick_tp_server_backup","smart_activation","smart_profit_floor","smart_trail_percent","smart_min_distance","smart_activation_ticks","smart_profit_floor_ticks","smart_min_distance_ticks","smart_adverse_ticks","smart_adverse_window","smart_opposite_signal","smart_server_take_profit","server_stop_loss","smart_loss_enabled","smart_loss_soft_trigger","smart_loss_reset_level","smart_loss_hard_cap","smart_loss_grace_ticks","smart_loss_max_watch_ticks","smart_loss_adverse_ticks","smart_loss_adverse_window","smart_loss_opposite_signal","smart_loss_rescue_profit","multiplier","ensemble_policy","ensemble_min_votes","ensemble_memory_ticks","ensemble_confirmations","ensemble_cooldown_ticks","ensemble_regime_lookback","ensemble_trend_threshold","ensemble_weight_threshold","ensemble_conflict_margin","rr_enabled","rr_ratio","rr_risk_basis","rr_risk_value","rr_breakeven_r","rr_lock_r","rr_session_stop_r","rr_session_target_r"];
   return Object.fromEntries(keys.filter((key)=>raw[key] !== undefined).map((key)=>[key,raw[key]]));
 }
 
@@ -1918,6 +1966,7 @@ function loadAdvancedControlFields(status = latestAdvancedStatus, force = false)
   set("#advCtlSmartTrail", settings.smart_trail_percent); set("#advCtlSmartDistance", settings.smart_min_distance);
   set("#advCtlSmartLossEnabled", settings.smart_loss_enabled); set("#advCtlSmartLossSoft", settings.smart_loss_soft_trigger);
   set("#advCtlSmartLossReset", settings.smart_loss_reset_level); set("#advCtlSmartLossHard", settings.smart_loss_hard_cap);
+  loadAdvancedRiskRewardFields(settings, force);
   set("#advCtlCapital", settings.capital); set("#advCtlSplit", settings.split_count); set("#advCtlCompound", settings.compound);
   const runtimeStrategy = $("#advRuntimeStrategy");
   if (runtimeStrategy && settings.strategy_mode === "ensemble" && ![...runtimeStrategy.options].some((o)=>o.value === "ensemble")) {
@@ -1928,11 +1977,11 @@ function loadAdvancedControlFields(status = latestAdvancedStatus, force = false)
 
 function renderAdvancedPositions(positions = []) {
   const body = $("#advPositionsBody"); if (!body) return;
-  if (!positions.length) { body.innerHTML = '<tr><td colspan="12" class="empty">No active positions</td></tr>'; return; }
+  if (!positions.length) { body.innerHTML = '<tr><td colspan="14" class="empty">No active positions</td></tr>'; return; }
   body.innerHTML = positions.map((p) => {
     const pl = advancedNumber(p.profit,0); const plClass = pl>0?"positive":pl<0?"negative":"";
     const trail = p.take_profit_unit === "ticks" ? `${advancedNumber(p.trailing_floor_ticks,0).toFixed(2)}t` : formatNumber(p.trailing_floor || 0);
-    return `<tr><td>#${escapeHtml(p.contract_id)}</td><td>${escapeHtml(p.direction)}</td><td>${formatNumber(p.stake)}</td><td>${p.entry_spot == null?"—":escapeHtml(p.entry_spot)}</td><td>${p.last_quote == null?"—":escapeHtml(p.last_quote)}</td><td class="${plClass}">${formatNumber(pl)}</td><td>${formatNumber(p.peak_profit||0)}</td><td class="${advancedNumber(p.worst_profit,0)<0?"negative":""}">${formatNumber(p.worst_profit||0)}</td><td>${escapeHtml(trail)}</td><td>${p.protection_active?"ACTIVE":"—"}</td><td>${p.loss_guard_active?`WATCH ${p.loss_guard_ticks||0}`:"—"}</td><td>${escapeHtml(p.closing_requested?(p.closing_reason||"closing"):(p.status||"open"))}</td></tr>`;
+    return `<tr><td>#${escapeHtml(p.contract_id)}</td><td>${escapeHtml(p.direction)}</td><td>${formatNumber(p.stake)}</td><td>${p.entry_spot == null?"—":escapeHtml(p.entry_spot)}</td><td>${p.last_quote == null?"—":escapeHtml(p.last_quote)}</td><td class="${plClass}">${formatNumber(pl)}</td><td>${formatNumber(p.peak_profit||0)}</td><td class="${advancedNumber(p.worst_profit,0)<0?"negative":""}">${formatNumber(p.worst_profit||0)}</td><td>${escapeHtml(trail)}</td>${rrPositionCells(p)}<td>${p.protection_active?"ACTIVE":"—"}</td><td>${p.loss_guard_active?`WATCH ${p.loss_guard_ticks||0}`:"—"}</td><td>${escapeHtml(p.closing_requested?(p.closing_reason||"closing"):(p.status||"open"))}</td></tr>`;
   }).join("");
 }
 
@@ -2568,6 +2617,7 @@ function bindEvents() {
     $("#heroSymbol").textContent = event.currentTarget.value || "—";
   });
   $("#labAddBotButton").addEventListener("click", () => addLabBot());
+  $("#labRatioTestButton")?.addEventListener("click", addLabRatioComparison);
   $("#labStartAllButton").addEventListener("click", startStrategyLab);
   $("#labStopAllButton").addEventListener("click", () => stopStrategyLab());
   $("#labBotBuilder").addEventListener("click", (event) => {
@@ -2786,3 +2836,306 @@ function initMobileShell() {
 }
 
 document.addEventListener('DOMContentLoaded', initMobileShell);
+// ===== V2.28 Risk:Reward manager =====
+// Mirrors bot.RiskReward so the preview shows exactly what the next order uses.
+const RR_QUOTE_KEY = "controlNexusLastStep100QuoteV228";
+const RR_PRESET_RATIOS = [1, 1.5, 2, 3, 4, 5];
+const RR_TICK_SIZE = 0.1;
+
+function rrFloor2(value) { return Math.floor((Number(value) + 1e-9) * 100) / 100; }
+function rrRatioText(ratio) { return `1:${Number(Number(ratio).toFixed(2))}`; }
+function rrMoney(value) { return value === null || value === undefined || !Number.isFinite(Number(value)) ? "—" : `$${Number(value).toFixed(2)}`; }
+function rrTicksText(value) { return Number.isFinite(value) ? `${Number(value.toFixed(1))}` : "—"; }
+function rrSignedR(value) { const n = toNumber(value, 0); return `${n >= 0 ? "+" : "−"}${Math.abs(n).toFixed(2)}R`; }
+function rrBreakEven(ratio) { return ratio > 0 ? 100 / (1 + ratio) : 100; }
+function rrExpectancy(winRatePct, ratio) { const p = winRatePct / 100; return p * ratio - (1 - p); }
+
+function rrLastQuote() {
+  const live = toNumber(latestAdvancedStatus?.telemetry?.quote ?? multiplierLastStatus?.telemetry?.quote ?? multiplierLastStatus?.dashboard?.quote, NaN);
+  if (Number.isFinite(live) && live > 0) {
+    try { localStorage.setItem(RR_QUOTE_KEY, String(live)); } catch (_) { /* storage optional */ }
+    return { value: live, live: true };
+  }
+  try {
+    const saved = Number(localStorage.getItem(RR_QUOTE_KEY));
+    if (Number.isFinite(saved) && saved > 0) return { value: saved, live: false };
+  } catch (_) { /* storage optional */ }
+  return null;
+}
+
+function rrHistoryWinRate() {
+  const summary = latestAdvancedTrades?.summary || {};
+  const trades = toNumber(summary.trades, 0);
+  return trades > 0 ? { rate: toNumber(summary.win_rate, 0), trades } : null;
+}
+
+function rrPlan(values) {
+  const capital = toNumber(values.capital, 0);
+  const split = Math.max(1, toNumber(values.split, 1));
+  const stake = rrFloor2(capital / split);
+  const ratio = toNumber(values.rr_ratio, 3);
+  const basis = values.rr_risk_basis || "amount";
+  const value = toNumber(values.rr_risk_value, 0);
+  const multiplier = toNumber(values.multiplier, 750);
+  const quote = rrLastQuote();
+  const perTick = quote && stake > 0 ? stake * multiplier * RR_TICK_SIZE / quote.value : null;
+  const warnings = [];
+  let risk = null, reward = null, riskTicks = null, rewardTicks = null;
+  if (basis === "ticks") {
+    riskTicks = value; rewardTicks = value * ratio;
+    if (perTick) { risk = rrFloor2(perTick * riskTicks); reward = rrFloor2(perTick * rewardTicks); }
+  } else {
+    risk = basis === "amount" ? rrFloor2(value) : basis === "stake_pct" ? rrFloor2(stake * value / 100) : rrFloor2(capital * value / 100);
+    if (stake > 0 && risk >= stake) { risk = rrFloor2(stake - 0.01); warnings.push(`Risk is capped just below the ${rrMoney(stake)} stake.`); }
+    if (risk < 0.01) risk = 0.01;
+    reward = rrFloor2(risk * ratio);
+    if (reward < 0.10) { reward = 0.10; warnings.push("Target raised to Deriv's 0.10 minimum, so the real ratio is better than chosen."); }
+    if (perTick) { riskTicks = risk / perTick; rewardTicks = reward / perTick; }
+  }
+  return { stake, capital, ratio, basis, value, risk, reward, riskTicks, rewardTicks, perTick, quote, warnings };
+}
+
+function rrSetField(name, value) {
+  const input = $("#sessionForm")?.elements?.namedItem(name);
+  if (!input) return;
+  if (input.type === "checkbox") input.checked = Boolean(value); else input.value = String(value);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+function renderRiskRewardPanel(values = formToObject($("#sessionForm"))) {
+  const host = $("#rrManager");
+  if (!host) return;
+  const on = Boolean(values.rr_enabled);
+  const plan = rrPlan(values);
+  const ratio = plan.ratio;
+  const basis = plan.basis;
+  const ticksBasis = basis === "ticks";
+  host.classList.toggle("is-off", !on);
+  $("#rrStateBadge").textContent = on ? "ACTIVE" : "OFF";
+  $("#rrStateBadge").className = `micro-badge ${on ? "up" : "neutral"}`;
+
+  $$("#rrRatioChips [data-rr-ratio]").forEach((chip) => chip.classList.toggle("active", Math.abs(Number(chip.dataset.rrRatio) - ratio) < 1e-9));
+  const lockTrigger = toNumber(values.rr_breakeven_r, 0);
+  const lockKeep = toNumber(values.rr_lock_r, 0);
+  $$("#rrLockChips [data-rr-lock]").forEach((chip) => chip.classList.toggle("active", Math.abs(Number(chip.dataset.rrLock) - lockTrigger) < 1e-9));
+
+  const labels = {
+    amount: ["Risk per trade ($)", "This is 1R: the most one trade should lose.", "The same money risk on every trade.", "0.01"],
+    stake_pct: ["Risk (% of stake)", `${toNumber(values.rr_risk_value, 0)}% of the ${rrMoney(plan.stake)} stake = 1R.`, "Scales with the stake, including compounding.", "0.5"],
+    capital_pct: ["Risk (% of capital)", `${toNumber(values.rr_risk_value, 0)}% of ${rrMoney(plan.capital)} session capital = 1R.`, "Classic \"risk 1% per trade\" sizing.", "0.05"],
+    ticks: ["Stop distance (Step ticks)", "Each Step 100 tick is 0.1 price. The bot watches ticks; Deriv keeps a money backup.", "Bracket in price movement, not money.", "1"],
+  }[basis] || [];
+  $("#rrRiskValueLabel").textContent = labels[0] || "Risk";
+  $("#rrRiskValueHint").textContent = labels[1] || "";
+  $("#rrBasisHint").textContent = labels[2] || "";
+  const riskInput = $("#rrRiskValue");
+  if (riskInput) { riskInput.min = labels[3] || "0.01"; riskInput.step = ticksBasis ? "1" : (basis === "amount" ? "0.01" : "0.05"); }
+
+  $("#rrRatioBig").textContent = rrRatioText(ratio);
+  const slShare = 1 / (1 + Math.max(ratio, 0.01)) * 100;
+  $("#rrBarSl").style.width = `${slShare}%`;
+  $("#rrBarTp").style.width = `${100 - slShare}%`;
+  if (ticksBasis) {
+    $("#rrSlText").textContent = `SL −${rrTicksText(plan.riskTicks)} ticks${plan.risk !== null ? ` (≈${rrMoney(plan.risk)})` : ""}`;
+    $("#rrTpText").textContent = `TP +${rrTicksText(plan.rewardTicks)} ticks${plan.reward !== null ? ` (≈${rrMoney(plan.reward)})` : ""}`;
+  } else {
+    $("#rrSlText").textContent = `SL −${rrMoney(plan.risk)}`;
+    $("#rrTpText").textContent = `TP +${rrMoney(plan.reward)}`;
+  }
+  $("#rrStake").textContent = rrMoney(plan.stake);
+  $("#rrRiskPct").textContent = plan.risk !== null && plan.stake > 0 ? `${(plan.risk / plan.stake * 100).toFixed(1)}% of stake` : "—";
+  const quoteNote = plan.quote ? (plan.quote.live ? "" : " (last seen price)") : "";
+  $("#rrTicks").textContent = plan.riskTicks !== null && plan.rewardTicks !== null
+    ? `${rrTicksText(plan.riskTicks)} / ${rrTicksText(plan.rewardTicks)}${quoteNote}`
+    : "Run the bot once (Signals only is fine) to read the price";
+  const breakEven = rrBreakEven(ratio);
+  $("#rrBreakEven").textContent = `${breakEven.toFixed(1)}%`;
+  const maxOpen = Math.max(1, Math.min(toNumber(values.max_open, 1), toNumber(values.split, 1)));
+  $("#rrHeat").textContent = plan.risk !== null
+    ? `${rrMoney(plan.risk * maxOpen)} (${maxOpen} × 1R${plan.capital > 0 ? `, ${(plan.risk * maxOpen / plan.capital * 100).toFixed(1)}% of capital` : ""})`
+    : "—";
+  const history = rrHistoryWinRate();
+  const expEl = $("#rrExpectancy");
+  if (history) {
+    const expectancy = rrExpectancy(history.rate, ratio);
+    expEl.textContent = `${history.rate.toFixed(1)}% → ${rrSignedR(expectancy)} / trade${history.trades < 30 ? " (small sample)" : ""}`;
+    expEl.className = expectancy > 0 ? "positive" : expectancy < 0 ? "negative" : "";
+  } else {
+    expEl.textContent = "Needs trade history";
+    expEl.className = "";
+  }
+
+  // Ratio comparison: the numbers for every common ratio, side by side.
+  const ratios = [...RR_PRESET_RATIOS];
+  if (!ratios.some((r) => Math.abs(r - ratio) < 1e-9) && ratio > 0) ratios.push(ratio);
+  ratios.sort((a, b) => a - b);
+  $("#rrCompareWinHead").textContent = history ? `If you keep ${history.rate.toFixed(0)}%` : "Expectancy";
+  const caption = $("#rrCompareCaption");
+  if (caption) caption.textContent = ticksBasis
+    ? `Stop is ${rrTicksText(plan.riskTicks)} ticks (1R) for every ratio. Tap a row to use it.`
+    : `Stop is ${rrMoney(plan.risk)} (1R) for every ratio. Tap a row to use it.`;
+  $("#rrCompareBody").innerHTML = ratios.map((r) => {
+    const row = rrPlan({ ...values, rr_ratio: r });
+    const tp = ticksBasis ? `+${rrTicksText(row.rewardTicks)} ticks` : `+${rrMoney(row.reward)}`;
+    const exp = history ? rrExpectancy(history.rate, r) : null;
+    const expText = exp === null ? "—" : rrSignedR(exp);
+    const expClass = exp === null ? "" : exp > 0 ? "positive" : exp < 0 ? "negative" : "";
+    const active = Math.abs(r - ratio) < 1e-9 ? " class=\"active\"" : "";
+    return `<tr${active} data-rr-ratio-row="${r}" tabindex="0" title="Use ${rrRatioText(r)}"><td><strong>${rrRatioText(r)}</strong></td><td class="positive">${tp}</td><td>${rrBreakEven(r).toFixed(1)}%</td><td class="${expClass}">${expText}</td></tr>`;
+  }).join("");
+
+  // Plain-language notes on what the manager will do with this setup.
+  const notes = [...plan.warnings.map((text) => ({ text, tone: "warn" }))];
+  const mode = values.take_profit_mode || "hybrid";
+  const lockOn = lockTrigger > 0;
+  if (ratio < 0.25 || ratio > 20) notes.push({ text: "Ratio must be between 1:0.25 and 1:20.", tone: "bad" });
+  if (basis === "amount" && plan.stake > 0 && toNumber(values.rr_risk_value, 0) >= plan.stake) notes.push({ text: `Risk must be below the ${rrMoney(plan.stake)} stake per split.`, tone: "bad" });
+  if (lockOn && lockTrigger >= ratio) notes.push({ text: "The profit lock must arm before the target. Lower it or raise the ratio.", tone: "bad" });
+  if (lockKeep >= (lockOn ? lockTrigger : 1)) notes.push({ text: "Profit kept must be below the lock trigger (or below 1R when the lock is off).", tone: "bad" });
+  if (ticksBasis) {
+    notes.push({ text: `The bot closes at −${rrTicksText(plan.riskTicks)} or +${rrTicksText(plan.rewardTicks)} ticks. Deriv holds backups about 1.5× further away in case this PC disconnects.`, tone: "" });
+  } else {
+    notes.push({ text: `Deriv holds the stop at −${rrMoney(plan.risk)} and the target at +${rrMoney(plan.reward)} on the server, so they still work if this PC disconnects.`, tone: "" });
+  }
+  if (mode === "smart" || mode === "hybrid") {
+    const start = lockOn ? lockTrigger : 1;
+    notes.push({ text: `${mode === "hybrid" ? "Hybrid" : "Smart"} trailing starts at +${start}R and never protects less than +${lockKeep}R. The trade still closes at the full target.`, tone: "" });
+  } else if (lockOn) {
+    notes.push({ text: `Once a trade reaches +${lockTrigger}R, it is closed if it falls back to +${lockKeep}R.`, tone: "" });
+  }
+  if (mode === "adaptive") notes.push({ text: "Adaptive TP range is replaced by the fixed ratio target while the manager is on.", tone: "" });
+  if (toNumber(values.server_stop_loss, 0) > 0) notes.push({ text: "The emergency server loss cap is ignored for new trades; the 1R stop replaces it.", tone: "" });
+  if (values.smart_loss_enabled && plan.risk !== null && toNumber(values.smart_loss_hard_cap, 0) < plan.risk) notes.push({ text: `Smart Loss hard cap (−${rrMoney(toNumber(values.smart_loss_hard_cap, 0))}) is tighter than 1R, so it can close trades before the stop.`, tone: "warn" });
+  notes.push({ text: "Deriv commission comes out of every trade, so small brackets lose more of the edge. Tick figures are estimates.", tone: "muted" });
+  $("#rrNotes").innerHTML = notes.map((note) => `<li class="${note.tone}">${escapeHtml(note.text)}</li>`).join("");
+  $("#rrLockTrigger")?.classList.toggle("risk-active", lockOn && lockTrigger >= ratio);
+  $("#rrRiskValue")?.classList.toggle("risk-active", basis === "amount" && plan.stake > 0 && toNumber(values.rr_risk_value, 0) >= plan.stake);
+
+  // Session form fields that the bracket replaces.
+  const managedNote = $("#rrManagedNote");
+  if (managedNote) {
+    managedNote.classList.toggle("hidden", !on);
+    $("#rrManagedNoteText").textContent = ticksBasis
+      ? `${rrRatioText(ratio)}: SL ${rrTicksText(plan.riskTicks)} ticks, TP ${rrTicksText(plan.rewardTicks)} ticks.`
+      : `${rrRatioText(ratio)}: SL −${rrMoney(plan.risk)}, TP +${rrMoney(plan.reward)} per trade.`;
+  }
+  const stopHint = $("#serverStopLossHint");
+  if (stopHint) stopHint.textContent = on
+    ? "Not used while the Risk:Reward manager is on. The 1R stop is attached to every order instead."
+    : "0 disables. This is separate from Smart Loss and remains at Deriv during a local disconnect.";
+}
+
+function initRiskRewardManager() {
+  const host = $("#rrManager");
+  if (!host) return;
+  host.addEventListener("click", (event) => {
+    const ratioChip = event.target.closest("[data-rr-ratio]");
+    const lockChip = event.target.closest("[data-rr-lock]");
+    const row = event.target.closest("[data-rr-ratio-row]");
+    const ratio = ratioChip?.dataset.rrRatio ?? row?.dataset.rrRatioRow;
+    if (ratio !== undefined) {
+      if (!$("#rrEnabled").checked) rrSetField("rr_enabled", true);
+      rrSetField("rr_ratio", ratio);
+      return;
+    }
+    if (lockChip) {
+      const trigger = Number(lockChip.dataset.rrLock);
+      rrSetField("rr_breakeven_r", trigger);
+      const keep = toNumber($("#rrLockKeep")?.value, 0.1);
+      if (trigger > 0 && keep >= trigger) rrSetField("rr_lock_r", 0.1);
+    }
+  });
+  host.addEventListener("keydown", (event) => {
+    const row = event.target.closest("[data-rr-ratio-row]");
+    if (row && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); row.click(); }
+  });
+  $("#rrBasis")?.addEventListener("change", (event) => {
+    // Give every basis a sensible starting value instead of reusing a number that means something else.
+    const starter = { amount: "1.00", stake_pct: "4", capital_pct: "1", ticks: "5" }[event.target.value];
+    if (starter) rrSetField("rr_risk_value", starter);
+  });
+  renderRiskRewardPanel();
+}
+
+function rrPositionCells(p) {
+  if (p.rr_active) {
+    const bracket = p.take_profit_unit === "ticks"
+      ? `−${rrTicksText(toNumber(p.risk_ticks, 0))}t / +${rrTicksText(toNumber(p.reward_ticks, 0))}t`
+      : `−${formatNumber(p.risk_amount)} / +${formatNumber(p.reward_amount)}`;
+    const r = toNumber(p.r_multiple, NaN);
+    const rText = Number.isFinite(r) ? `${rrSignedR(r)}${p.rr_lock_armed ? " 🔒" : ""}` : "—";
+    return `<td>${escapeHtml(bracket)}</td><td class="${r > 0 ? "positive" : r < 0 ? "negative" : ""}">${escapeHtml(rText)}</td>`;
+  }
+  const sl = toNumber(p.stop_loss, 0);
+  return `<td>${sl > 0 ? `−${formatNumber(sl)}` : "—"} / +${formatNumber(p.take_profit || 0)}</td><td>—</td>`;
+}
+
+function renderRiskRewardStatus(status = latestAdvancedStatus) {
+  const rm = status?.telemetry?.risk_manager;
+  const summary = $("#advRrSummary");
+  if (summary) {
+    if (rm?.enabled && rm.next_trade) {
+      const n = rm.next_trade;
+      const bracket = n.unit === "ticks" ? `SL ${rrTicksText(n.risk_ticks)}t / TP ${rrTicksText(n.reward_ticks)}t` : `SL −${formatNumber(n.risk_amount)} / TP +${formatNumber(n.reward_amount)}`;
+      summary.textContent = `${n.label} · ${bracket} · session ${rrSignedR(rm.session_r)}`;
+    } else {
+      summary.textContent = rm?.enabled ? "Manager on" : "Manager off";
+    }
+  }
+  const openProfit = $("#metricOpenProfit");
+  if (openProfit && rm?.enabled && toNumber(rm.r_trades, 0) > 0) {
+    openProfit.textContent += ` · ${rrSignedR(rm.session_r)} session`;
+  }
+}
+
+function loadAdvancedRiskRewardFields(settings = {}, force = false) {
+  const set = (id, value) => {
+    const el = $(id); if (!el || value === undefined || value === null || (!force && document.activeElement === el)) return;
+    if (el.type === "checkbox") { el.checked = Boolean(value); return; }
+    if (el.tagName === "SELECT" && ![...el.options].some((o) => Number(o.value) === Number(value) || o.value === String(value))) {
+      el.insertAdjacentHTML("beforeend", `<option value="${escapeHtml(value)}">1:${escapeHtml(value)}</option>`);
+    }
+    const match = el.tagName === "SELECT" ? [...el.options].find((o) => o.value === String(value) || Number(o.value) === Number(value)) : null;
+    el.value = match ? match.value : String(value);
+  };
+  set("#advCtlRrEnabled", settings.rr_enabled);
+  set("#advCtlRrRatio", settings.rr_ratio);
+  set("#advCtlRrBasis", settings.rr_risk_basis);
+  set("#advCtlRrValue", settings.rr_risk_value);
+  set("#advCtlRrLock", settings.rr_breakeven_r);
+  set("#advCtlRrKeep", settings.rr_lock_r);
+}
+
+function initAdvancedRiskReward() {
+  $("#advRiskRewardForm")?.addEventListener("input", () => { advancedControlsDirty = true; });
+  $("#advApplyRiskReward")?.addEventListener("click", () => sendAdvancedLiveControl({
+    action: "apply",
+    label: "Risk:Reward manager",
+    settings: {
+      rr_enabled: $("#advCtlRrEnabled").checked,
+      rr_ratio: $("#advCtlRrRatio").value,
+      rr_risk_basis: $("#advCtlRrBasis").value,
+      rr_risk_value: $("#advCtlRrValue").value,
+      rr_breakeven_r: $("#advCtlRrLock").value || "0",
+      rr_lock_r: $("#advCtlRrKeep").value || "0.1",
+    },
+  }, "Risk:Reward manager updated for new trades"));
+}
+
+function renderRiskRewardHistory(summary = {}) {
+  const box = $("#rrHistorySummary");
+  if (!box) return;
+  const count = toNumber(summary.r_trades, 0);
+  box.classList.toggle("hidden", count <= 0);
+  if (count <= 0) return;
+  const signed = rrSignedR;
+  $("#historyRTrades").textContent = String(count);
+  $("#historyTotalR").textContent = signed(summary.total_r);
+  $("#historyTotalR").className = toNumber(summary.total_r, 0) > 0 ? "positive" : toNumber(summary.total_r, 0) < 0 ? "negative" : "";
+  $("#historyAvgR").textContent = signed(summary.average_r);
+  $("#historyAvgR").className = toNumber(summary.average_r, 0) > 0 ? "positive" : toNumber(summary.average_r, 0) < 0 ? "negative" : "";
+  $("#historyRWinRate").textContent = `${summary.r_win_rate ?? "0.0"}%`;
+  $("#historyBestWorstR").textContent = `${signed(summary.best_r)} / ${signed(summary.worst_r)}`;
+}
+
+document.addEventListener("DOMContentLoaded", () => { initRiskRewardManager(); initAdvancedRiskReward(); });

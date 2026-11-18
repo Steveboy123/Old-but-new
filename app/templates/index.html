@@ -12,7 +12,7 @@
   <link rel="manifest" href="/static/manifest.webmanifest">
   <link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png">
   <link rel="apple-touch-icon" href="/static/icon-192.png">
-  <title>Dr Exploit Control Nexus V2.27 - Ollama AI Trader</title>
+  <title>Dr Exploit Control Nexus V2.28 - Risk:Reward Manager</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Orbitron:wght@600;700;800&family=Quicksand:wght@500;600;700&family=Chakra+Petch:wght@500;600;700&display=swap" rel="stylesheet">
@@ -371,7 +371,7 @@
 
                 <article class="card advanced-widget" data-widget-id="positions" data-span="2" data-height="tall">
                   <div class="advanced-widget-head"><div><span class="widget-kicker">POSITIONS</span><h3>Position monitor</h3><p>Entry, current quote, peak/worst excursion, profit protection, Smart Loss and close state.</p></div><div class="widget-controls"></div></div>
-                  <div class="table-wrap"><table class="advanced-position-table"><thead><tr><th>ID</th><th>Side</th><th>Stake</th><th>Entry</th><th>Quote</th><th>P/L</th><th>Peak</th><th>Worst</th><th>Trail floor</th><th>Protection</th><th>Loss guard</th><th>Status</th></tr></thead><tbody id="advPositionsBody"><tr><td colspan="12" class="empty">No active positions</td></tr></tbody></table></div>
+                  <div class="table-wrap"><table class="advanced-position-table"><thead><tr><th>ID</th><th>Side</th><th>Stake</th><th>Entry</th><th>Quote</th><th>P/L</th><th>Peak</th><th>Worst</th><th>Trail floor</th><th>SL / TP</th><th>R now</th><th>Protection</th><th>Loss guard</th><th>Status</th></tr></thead><tbody id="advPositionsBody"><tr><td colspan="14" class="empty">No active positions</td></tr></tbody></table></div>
                 </article>
 
                 <article class="card advanced-widget" data-widget-id="recent-trades" data-span="1" data-height="normal">
@@ -427,6 +427,17 @@
                       <label><span>Hard cap</span><input id="advCtlSmartLossHard" type="number" min="0.01" step="0.01"></label>
                     </form>
                     <div class="advanced-control-actions"><button id="advApplyProtection" class="button primary" type="button">Apply protection live</button></div>
+                    <form id="advRiskRewardForm" class="advanced-control-grid adv-rr-form">
+                      <div class="adv-rr-title"><span class="eyebrow">RISK:REWARD</span><strong id="advRrSummary">Manager off</strong></div>
+                      <label class="advanced-check"><input id="advCtlRrEnabled" type="checkbox"><span>Risk:Reward on</span></label>
+                      <label><span>Ratio 1 :</span><select id="advCtlRrRatio"><option value="1">1:1</option><option value="1.5">1:1.5</option><option value="2">1:2</option><option value="3">1:3</option><option value="4">1:4</option><option value="5">1:5</option></select></label>
+                      <label><span>Risk basis</span><select id="advCtlRrBasis"><option value="amount">Amount</option><option value="stake_pct">% stake</option><option value="capital_pct">% capital</option><option value="ticks">Ticks</option></select></label>
+                      <label><span>Risk value</span><input id="advCtlRrValue" type="number" min="0.01" step="0.01"></label>
+                      <label><span>Lock at +R</span><input id="advCtlRrLock" type="number" min="0" step="0.1"></label>
+                      <label><span>Keep (R)</span><input id="advCtlRrKeep" type="number" min="0" step="0.05"></label>
+                    </form>
+                    <div class="advanced-control-actions"><button id="advApplyRiskReward" class="button primary" type="button">Apply Risk:Reward live</button></div>
+                    <p class="adv-rr-help">Applies to new trades only. Open trades keep the bracket they opened with.</p>
                   </div>
 
                   <div class="advanced-deck-panel" data-adv-deck-panel="strategy">
@@ -651,31 +662,108 @@
           <label class="field"><span>Trades per signal</span><input name="trades_per_signal" id="tradesPerSignal" type="number" min="1" max="50" step="1" required><small>Exact maximum positions opened for each fresh signal. Cannot exceed Maximum open trades.</small></label>
           <label class="field"><span>Delay between splits (seconds)</span><input name="split_delay" type="number" min="0" max="3600" step="0.1" required></label>
           <label class="field"><span>Multiplier</span><select name="multiplier" required><option value="750">×750</option><option value="2000">×2000</option><option value="3500">×3500</option><option value="5500">×5500</option><option value="7500">×7500</option></select><small>Only multipliers offered for Step 100 on this account.</small></label>
-          <label class="field"><span>Emergency server loss cap</span><input name="server_stop_loss" type="number" min="0" step="0.01" value="0"><small>0 disables. This is separate from Smart Loss and remains at Deriv during a local disconnect.</small></label>
+          <label class="field" id="serverStopLossField"><span>Emergency server loss cap</span><input name="server_stop_loss" type="number" min="0" step="0.01" value="0"><small id="serverStopLossHint">0 disables. This is separate from Smart Loss and remains at Deriv during a local disconnect.</small></label>
           <label class="field checkbox"><input name="compound" type="checkbox"><span>Enable compounding</span><small>Recalculates slot size only when all positions are flat.</small></label>
           <label class="field"><span>Loss behavior</span><select name="loss_policy"><option value="continue">Continue after losses</option><option value="first">Stop after first loss</option><option value="consecutive">Stop after consecutive losses</option><option value="total">Stop after total losses</option></select></label>
           <label class="field"><span>Loss count</span><input name="loss_count" type="number" min="1" max="100000" step="1" required></label>
           <label class="field"><span>Stop after wins</span><input name="win_target" type="number" min="0" step="1" required><small>0 disables.</small></label>
           <label class="field"><span>Session profit target</span><input name="profit_target" type="number" min="0" step="0.01" required><small>0 disables.</small></label>
           <label class="field"><span>Session loss limit</span><input name="loss_limit" type="number" min="0" step="0.01" required><small>0 disables.</small></label>
-          <label class="field"><span>Exit mode</span><select name="take_profit_mode" id="tpMode"><option value="fixed">Fixed take profit</option><option value="adaptive">Adaptive take profit</option><option value="smart">Smart trailing profit</option><option value="hybrid">Hybrid smart exit</option></select><small>Hybrid adds momentum and opposite-signal exits.</small></label>
+
+          <div class="form-subsection-heading rr-heading">
+            <div><span class="eyebrow">RISK MANAGER</span><h3>Risk:Reward manager</h3></div>
+            <p>Pick a ratio and how much one trade may lose. Every new trade gets its own stop loss (1R) and take profit (ratio × R), worked out from its real stake when the order is sent. No manual TP/SL maths.</p>
+          </div>
+          <div class="rr-manager" id="rrManager">
+            <div class="rr-controls">
+              <label class="rr-toggle"><input name="rr_enabled" id="rrEnabled" type="checkbox"><span><strong>Use the Risk:Reward manager</strong><small>Sets TP and SL for every new trade. Your exit mode still decides how the trade is managed inside that bracket.</small></span></label>
+
+              <div class="rr-group">
+                <span class="rr-label">Ratio — risk : reward</span>
+                <div class="rr-chips" id="rrRatioChips" role="group" aria-label="Risk to reward ratio">
+                  <button type="button" data-rr-ratio="1">1:1</button>
+                  <button type="button" data-rr-ratio="1.5">1:1.5</button>
+                  <button type="button" data-rr-ratio="2">1:2</button>
+                  <button type="button" data-rr-ratio="3">1:3</button>
+                  <button type="button" data-rr-ratio="4">1:4</button>
+                  <button type="button" data-rr-ratio="5">1:5</button>
+                </div>
+                <label class="field rr-custom-ratio"><span>Custom ratio&nbsp;&nbsp;1 :</span><input name="rr_ratio" id="rrRatio" type="number" min="0.25" max="20" step="0.25" value="3"></label>
+              </div>
+
+              <div class="rr-pair">
+                <label class="field"><span>Risk measured as</span><select name="rr_risk_basis" id="rrBasis"><option value="amount">Fixed amount per trade</option><option value="stake_pct">% of stake per split</option><option value="capital_pct">% of session capital</option><option value="ticks">Step ticks against the trade</option></select><small id="rrBasisHint">The same money risk on every trade.</small></label>
+                <label class="field"><span id="rrRiskValueLabel">Risk per trade ($)</span><input name="rr_risk_value" id="rrRiskValue" type="number" min="0.01" step="0.01" value="1.00"><small id="rrRiskValueHint">This is 1R: the most one trade should lose.</small></label>
+              </div>
+
+              <div class="rr-group">
+                <span class="rr-label">Profit lock — protect a winner once it is up</span>
+                <div class="rr-chips" id="rrLockChips" role="group" aria-label="Profit lock trigger">
+                  <button type="button" data-rr-lock="0">Off</button>
+                  <button type="button" data-rr-lock="1">At +1R</button>
+                  <button type="button" data-rr-lock="1.5">At +1.5R</button>
+                  <button type="button" data-rr-lock="2">At +2R</button>
+                </div>
+                <div class="rr-pair">
+                  <label class="field"><span>Arm lock at (+R)</span><input name="rr_breakeven_r" id="rrLockTrigger" type="number" min="0" step="0.1" value="0"><small>0 = off. Must be below the reward target.</small></label>
+                  <label class="field"><span>Profit kept (R)</span><input name="rr_lock_r" id="rrLockKeep" type="number" min="0" step="0.05" value="0.10"><small>0.10R ≈ break-even plus a little for commission.</small></label>
+                </div>
+              </div>
+
+              <div class="rr-group">
+                <span class="rr-label">Session limits in R (optional)</span>
+                <div class="rr-pair">
+                  <label class="field"><span>Stop entries at −R</span><input name="rr_session_stop_r" id="rrSessionStop" type="number" min="0" step="0.5" value="0"><small>3 = stop after losing three risk units. 0 = off.</small></label>
+                  <label class="field"><span>Stop entries at +R</span><input name="rr_session_target_r" id="rrSessionTarget" type="number" min="0" step="0.5" value="0"><small>6 = bank the session at +6R. 0 = off.</small></label>
+                </div>
+              </div>
+            </div>
+
+            <aside class="rr-preview" aria-live="polite">
+              <div class="rr-preview-head"><span class="eyebrow">NEXT TRADE BRACKET</span><span class="micro-badge neutral" id="rrStateBadge">OFF</span></div>
+              <div class="rr-ratio-big" id="rrRatioBig">1:3</div>
+              <div class="rr-bracket" aria-hidden="true">
+                <div class="rr-bracket-bar"><i class="rr-bar-sl" id="rrBarSl"></i><i class="rr-bar-tp" id="rrBarTp"></i></div>
+                <div class="rr-bracket-labels"><span class="negative" id="rrSlText">SL —</span><span class="rr-entry-label">Entry</span><span class="positive" id="rrTpText">TP —</span></div>
+              </div>
+              <dl class="rr-stats">
+                <div><dt>Stake per split</dt><dd id="rrStake">—</dd></div>
+                <div><dt>Risk vs stake</dt><dd id="rrRiskPct">—</dd></div>
+                <div><dt>Ticks to SL / TP</dt><dd id="rrTicks">—</dd></div>
+                <div><dt>Break-even win rate</dt><dd id="rrBreakEven">—</dd></div>
+                <div><dt>Max open risk</dt><dd id="rrHeat">—</dd></div>
+                <div><dt>Expectancy at your win rate</dt><dd id="rrExpectancy">—</dd></div>
+              </dl>
+              <ul class="rr-notes" id="rrNotes"></ul>
+              <div class="rr-compare-wrap">
+                <table class="rr-compare">
+                  <thead><tr><th>Ratio</th><th>Target</th><th>Need to win</th><th id="rrCompareWinHead">Expectancy</th></tr></thead>
+                  <tbody id="rrCompareBody"></tbody>
+                </table>
+              </div>
+              <p class="rr-compare-caption" id="rrCompareCaption">Tap a row to use that ratio.</p>
+            </aside>
+          </div>
+
+          <label class="field"><span>Exit mode</span><select name="take_profit_mode" id="tpMode"><option value="fixed">Fixed take profit</option><option value="adaptive">Adaptive take profit</option><option value="smart">Smart trailing profit</option><option value="hybrid">Hybrid smart exit</option></select><small id="tpModeHint">Hybrid adds momentum and opposite-signal exits.</small></label>
+          <div class="field rr-managed-note hidden" id="rrManagedNote"><span>Take profit &amp; stop loss</span><strong>Set by the Risk:Reward manager</strong><small id="rrManagedNoteText">The TP fields below are replaced by the ratio bracket.</small></div>
           <label class="field" id="tpUnitField"><span>Profit measurement</span><select name="take_profit_unit" id="tpUnit"><option value="amount">Money amount</option><option value="ticks">Step ticks</option></select><small>Available for Fixed, Adaptive, Smart and Hybrid exits. Tick mode measures net favorable Step movement from entry.</small></label>
-          <label class="field tp-amount-field" id="tpBaseField"><span>Minimum / fixed TP amount</span><input name="take_profit" type="number" min="0.10" step="0.01" required></label>
-          <label class="field tp-amount-field" id="tpMaxField"><span>Maximum adaptive TP amount</span><input name="take_profit_max" type="number" min="0.10" step="0.01" required></label>
-          <label class="field tp-tick-field hidden" id="tpTicksField"><span>Minimum / fixed TP ticks</span><input name="take_profit_ticks" type="number" min="1" step="1" required><small>Net favorable Step ticks from entry.</small></label>
-          <label class="field tp-tick-field hidden" id="tpTicksMaxField"><span>Maximum adaptive TP ticks</span><input name="take_profit_ticks_max" type="number" min="1" step="1" required></label>
-          <label class="field tp-tick-field hidden" id="tickTpServerBackupField"><span>Emergency server TP amount</span><input name="tick_tp_server_backup" type="number" min="0.10" step="0.01" required><small>Money TP attached at Deriv while the local bot watches the tick target.</small></label>
-          <label class="field smart-exit-field smart-amount-field"><span>Activate profit protection ($)</span><input name="smart_activation" type="number" min="0.10" step="0.01" required><small>Amount mode: trailing starts after this floating profit.</small></label>
-          <label class="field smart-exit-field smart-amount-field"><span>Minimum protected profit ($)</span><input name="smart_profit_floor" type="number" min="0.10" step="0.01" required><small>Amount mode protected floor.</small></label>
-          <label class="field smart-exit-field smart-tick-field hidden"><span>Activate protection (ticks)</span><input name="smart_activation_ticks" type="number" min="1" step="1" value="3" required><small>Tick mode: trailing starts after this many net favorable Step ticks.</small></label>
-          <label class="field smart-exit-field smart-tick-field hidden"><span>Protected floor (ticks)</span><input name="smart_profit_floor_ticks" type="number" min="1" step="1" value="1" required><small>Hybrid reversal exits are not intentionally sent below this positive tick floor.</small></label>
+          <label class="field tp-amount-field rr-replaced" id="tpBaseField"><span>Minimum / fixed TP amount</span><input name="take_profit" type="number" min="0.10" step="0.01" required></label>
+          <label class="field tp-amount-field rr-replaced" id="tpMaxField"><span>Maximum adaptive TP amount</span><input name="take_profit_max" type="number" min="0.10" step="0.01" required></label>
+          <label class="field tp-tick-field rr-replaced hidden" id="tpTicksField"><span>Minimum / fixed TP ticks</span><input name="take_profit_ticks" type="number" min="1" step="1" required><small>Net favorable Step ticks from entry.</small></label>
+          <label class="field tp-tick-field rr-replaced hidden" id="tpTicksMaxField"><span>Maximum adaptive TP ticks</span><input name="take_profit_ticks_max" type="number" min="1" step="1" required></label>
+          <label class="field tp-tick-field rr-replaced hidden" id="tickTpServerBackupField"><span>Emergency server TP amount</span><input name="tick_tp_server_backup" type="number" min="0.10" step="0.01" required><small>Money TP attached at Deriv while the local bot watches the tick target.</small></label>
+          <label class="field smart-exit-field smart-amount-field rr-replaced"><span>Activate profit protection ($)</span><input name="smart_activation" type="number" min="0.10" step="0.01" required><small>Amount mode: trailing starts after this floating profit.</small></label>
+          <label class="field smart-exit-field smart-amount-field rr-replaced"><span>Minimum protected profit ($)</span><input name="smart_profit_floor" type="number" min="0.10" step="0.01" required><small>Amount mode protected floor.</small></label>
+          <label class="field smart-exit-field smart-tick-field rr-replaced hidden"><span>Activate protection (ticks)</span><input name="smart_activation_ticks" type="number" min="1" step="1" value="3" required><small>Tick mode: trailing starts after this many net favorable Step ticks.</small></label>
+          <label class="field smart-exit-field smart-tick-field rr-replaced hidden"><span>Protected floor (ticks)</span><input name="smart_profit_floor_ticks" type="number" min="1" step="1" value="1" required><small>Hybrid reversal exits are not intentionally sent below this positive tick floor.</small></label>
           <label class="field smart-exit-field"><span>Trailing giveback (%)</span><input name="smart_trail_percent" type="number" min="1" max="95" step="1" required></label>
           <label class="field smart-exit-field smart-amount-field"><span>Minimum trail distance ($)</span><input name="smart_min_distance" type="number" min="0.01" step="0.01" required></label>
           <label class="field smart-exit-field smart-tick-field hidden"><span>Minimum trail distance (ticks)</span><input name="smart_min_distance_ticks" type="number" min="1" step="1" value="1" required></label>
           <label class="field smart-exit-field hybrid-only"><span>Adverse ticks required</span><input name="smart_adverse_ticks" type="number" min="1" max="20" step="1" required></label>
           <label class="field smart-exit-field hybrid-only"><span>Adverse tick window</span><input name="smart_adverse_window" type="number" min="1" max="50" step="1" required></label>
           <label class="field checkbox smart-exit-field hybrid-only"><input name="smart_opposite_signal" type="checkbox"><span>Exit on confirmed opposite signal</span><small>Only after profit protection is active.</small></label>
-          <label class="field smart-exit-field"><span>Emergency server-side TP ($)</span><input name="smart_server_take_profit" type="number" min="0.10" step="0.01" required><small>Always money-based as the disconnect backstop; local tick trailing resumes after reconnect.</small></label>
+          <label class="field smart-exit-field rr-replaced"><span>Emergency server-side TP ($)</span><input name="smart_server_take_profit" type="number" min="0.10" step="0.01" required><small>Always money-based as the disconnect backstop; local tick trailing resumes after reconnect.</small></label>
 
           <div class="form-subsection-heading smart-loss-heading">
             <div><span class="eyebrow">RECOVERY-AWARE RISK CONTROL</span><h3>Smart Loss Guard</h3></div>
@@ -880,6 +968,7 @@
         <div class="lab-top-actions">
           <span id="labRunBadge" class="badge neutral">Lab idle</span>
           <button type="button" id="labAddBotButton" class="button secondary">+ Add test bot</button>
+          <button type="button" id="labRatioTestButton" class="button secondary" title="Add four testers that differ only in Risk:Reward ratio">+ Ratio test 1:1–1:4</button>
           <button type="button" id="labStopAllButton" class="button danger" disabled>Stop all entries</button>
           <button type="button" id="labStartAllButton" class="button primary">Run comparison</button>
         </div>
@@ -1046,6 +1135,13 @@
         <article class="metric-card"><span>Losses</span><strong id="historyLosses">0</strong></article>
         <article class="metric-card"><span>Total P/L</span><strong id="historyProfit">0.00</strong></article>
         <article class="metric-card"><span>Win rate</span><strong id="historyWinRate">0.0%</strong></article>
+      </div>
+      <div class="status-grid history-summary rr-history-summary hidden" id="rrHistorySummary">
+        <article class="metric-card"><span>Risk:Reward trades</span><strong id="historyRTrades">0</strong></article>
+        <article class="metric-card"><span>Total R</span><strong id="historyTotalR">0.00R</strong></article>
+        <article class="metric-card"><span>Average R / trade</span><strong id="historyAvgR">0.00R</strong><small>Positive = the ratio is paying.</small></article>
+        <article class="metric-card"><span>R win rate</span><strong id="historyRWinRate">0.0%</strong></article>
+        <article class="metric-card"><span>Best / worst</span><strong id="historyBestWorstR">—</strong></article>
       </div>
       <article class="card pattern-performance-card">
         <div class="card-header"><div><h2>Candlestick pattern performance</h2><p>Closed trades attributed to a candle pattern. Use this to disable patterns that repeatedly underperform instead of guessing.</p></div><span class="micro-badge neutral">Pattern attribution</span></div>
