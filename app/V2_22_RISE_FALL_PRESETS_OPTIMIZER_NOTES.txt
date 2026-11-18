@@ -1,0 +1,13 @@
+Dr Exploit Control Nexus V2.22 — Rise/Fall Presets + Optimizer
+
+Added to the dedicated Rise/Fall Step 100 section:
+- Save named Rise/Fall configurations persistently
+- Select a saved setup to load it into the Rise/Fall form
+- Download a setup as portable JSON
+- Upload/import a Rise/Fall preset JSON
+- Delete saved Rise/Fall presets
+- Download sanitized optimization reports as Markdown or raw JSON
+- V2.22+ Rise/Fall trade history records entry-time signal confidence, edge, proposal return, break-even rate, RSI/momentum, duration, lookback, thresholds and model weights
+- Optimization exports include overall performance, drawdown, streaks, direction/duration/mode/confidence/edge breakdowns, current config, runtime model snapshot and recent sanitized trades
+
+Credentials, API tokens, account IDs and Deriv contract IDs are not included in Rise/Fall preset or optimization exports.

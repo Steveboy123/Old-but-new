@@ -1,0 +1,1126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#0a0f1a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Control Nexus">
+  <meta name="application-name" content="Control Nexus">
+  <link rel="manifest" href="/static/manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png">
+  <link rel="apple-touch-icon" href="/static/icon-192.png">
+  <title>Dr Exploit Control Nexus V2.27 - Ollama AI Trader</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Orbitron:wght@600;700;800&family=Quicksand:wght@500;600;700&family=Chakra+Petch:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body data-ui-token="{{ ui_token }}">
+  <div id="themeFx" class="theme-fx" aria-hidden="true"></div>
+  <header class="topbar">
+    <div>
+      <div class="eyebrow">CYBER OPERATIONS DASHBOARD</div>
+      <h1>Dr Exploit <span>Control&nbsp;Nexus</span></h1>
+    </div>
+    <div class="top-actions">
+      <button id="installAppButton" class="button secondary install-app-button hidden" type="button">Install app</button>
+      <button id="uiSettingsButton" class="button secondary ui-settings-button" type="button" aria-label="Open interface settings">⚙ UI</button>
+      <button id="riskNoticeButton" class="button risk-notice-button" type="button" aria-label="Open trading risk and commission notice">⚠ Risk</button>
+      <div id="connectionBadge" class="badge neutral">Not tested</div>
+      <div id="processBadge" class="badge stopped">Stopped</div>
+      <button id="stopButton" class="button danger" disabled>Stop new entries</button>
+      <button id="startButton" class="button primary">Deploy bot</button>
+    </div>
+  </header>
+
+  <div id="mobileAppBar" class="mobile-app-bar" aria-label="Mobile quick controls">
+    <button class="mobile-nav active" data-mobile-tab="dashboard" type="button"><span>◈</span><small>Home</small></button>
+    <button class="mobile-nav" data-mobile-tab="session" type="button"><span>⚙</span><small>Session</small></button>
+    <button id="mobileDeployButton" class="mobile-deploy" type="button" aria-label="Start bot"><span>▶</span></button>
+    <button class="mobile-nav" data-mobile-tab="strategy" type="button"><span>⌖</span><small>Config</small></button>
+    <button id="mobileMoreButton" class="mobile-nav" type="button" aria-expanded="false" aria-controls="mobileMoreSheet"><span>•••</span><small>More</small></button>
+  </div>
+
+  <div id="mobileMoreBackdrop" class="mobile-more-backdrop" aria-hidden="true"></div>
+  <aside id="mobileMoreSheet" class="mobile-more-sheet" aria-label="More Control Nexus sections" aria-hidden="true">
+    <div class="mobile-sheet-handle" aria-hidden="true"></div>
+    <div class="mobile-sheet-heading"><div><div class="eyebrow">CONTROL NEXUS</div><h2>More tools</h2></div><button id="mobileMoreClose" class="mobile-sheet-close" type="button" aria-label="Close menu">×</button></div>
+    <div class="mobile-more-grid">
+      <button class="mobile-more-action" data-mobile-tab="rise-fall" type="button"><span>↕</span><strong>Rise / Fall</strong><small>CALL / PUT engine</small></button>
+      <button class="mobile-more-action" data-mobile-tab="rf-lab" type="button"><span>⌬</span><strong>Rise/Fall Lab</strong><small>Isolated config testing</small></button>
+      <button class="mobile-more-action" data-mobile-tab="credentials" type="button"><span>⚿</span><strong>Account</strong><small>Credentials & connection</small></button>
+      <button class="mobile-more-action" data-mobile-tab="history" type="button"><span>▥</span><strong>History</strong><small>Trades & pattern results</small></button>
+      <button class="mobile-more-action" data-mobile-tab="lab" type="button"><span>◫</span><strong>Strategy Lab</strong><small>Parallel demo testing</small></button>
+      <button id="mobileUiSettingsButton" class="mobile-more-action" type="button"><span>⚙</span><strong>Appearance</strong><small>Colors, image & refresh speed</small></button>
+      <button id="mobileRiskCommissionButton" class="mobile-more-action" type="button"><span>⚠</span><strong>Risk & commission</strong><small>1%–3% markup, typically 1%</small></button>
+    </div>
+  </aside>
+
+  <div id="mobileConfigDock" class="mobile-config-dock" aria-hidden="true">
+    <div><small>BOT CONFIG</small><strong id="mobileConfigDockLabel">Selected strategy settings</strong></div>
+    <button id="mobileSaveConfigButton" class="button primary" type="button">Save config</button>
+  </div>
+
+  <main class="shell">
+    <section class="nexus-banner" aria-label="Bot overview">
+      <div class="nexus-identity">
+        <div class="nexus-avatar">
+          <img id="heroArtwork" src="/static/dr_exploit_hero.png" alt="Dr Exploit cyber plague doctor artwork">
+          <span class="avatar-scan" aria-hidden="true"></span>
+        </div>
+        <div class="nexus-title">
+          <div class="eyebrow">STEP 100 OPERATIONS</div>
+          <h2>Adaptive strategy command center</h2>
+          <p id="heroStatusText">System idle. Configure a session or test the Deriv connection.</p>
+        </div>
+      </div>
+      <div class="system-strip">
+        <div class="system-item"><span class="status-dot" id="apiStatusDot"></span><small>API link</small><strong id="apiStatusText">Not tested</strong></div>
+        <div class="system-item"><small>Instrument</small><strong id="heroSymbol">stpRNG</strong></div>
+        <div class="system-item"><small>Refresh</small><strong id="refreshSpeedLabel">1.5 sec</strong></div>
+        <div class="system-item secure"><small>Interface</small><strong>Local only</strong></div>
+      </div>
+    </section>
+
+    <nav class="engine-switch" aria-label="Trading engine">
+      <button class="engine-tab active" type="button" data-engine="multiplier"><span>×</span><div><strong>Multiplier</strong><small>MULTUP / MULTDOWN</small></div></button>
+      <button class="engine-tab" type="button" data-engine="rise-fall"><span>↕</span><div><strong>Rise / Fall</strong><small>CALL / PUT</small></div></button>
+    </nav>
+
+    <nav class="tabs engine-nav-group" data-engine-nav="multiplier" aria-label="Multiplier sections">
+      <button class="tab active nav-pulse pulse-a" data-tab="dashboard"><span class="tab-icon">◈</span>Dashboard</button>
+      <button class="tab nav-pulse pulse-b" data-tab="session"><span class="tab-icon">⚙</span>Session setup</button>
+      <button class="tab" data-tab="strategy"><span class="tab-icon">⌖</span>Strategy config</button>
+      <button class="tab nav-pulse pulse-c" data-tab="lab"><span class="tab-icon">◫</span>Multiplier Lab</button>
+      <button class="tab" data-tab="credentials"><span class="tab-icon">⚿</span>Credentials</button>
+      <button class="tab" data-tab="history"><span class="tab-icon">▥</span>Multiplier history</button>
+      <button id="navDeployButton" class="tab nav-deploy-action" type="button"><span class="tab-icon">▶</span>Deploy Multiplier</button>
+    </nav>
+    <nav class="tabs engine-nav-group hidden" data-engine-nav="rise-fall" aria-label="Rise/Fall sections">
+      <button class="tab rf-nav-tab" data-tab="rise-fall"><span class="tab-icon">↕</span>Rise / Fall</button>
+      <button class="tab nav-pulse pulse-c" data-tab="rf-lab"><span class="tab-icon">⌬</span>Rise/Fall Lab</button>
+      <button class="tab" data-tab="credentials"><span class="tab-icon">⚿</span>Credentials</button>
+    </nav>
+
+    <section id="tab-dashboard" class="panel tab-panel active">
+      <div class="dashboard-heading">
+        <div>
+          <div class="eyebrow">LIVE OPERATIONS</div>
+          <h2>Command dashboard</h2>
+          <p>Real-time session health, quote momentum, capital allocation, and closed-trade analytics.</p>
+        </div>
+        <div class="dashboard-heading-actions">
+          <div class="dashboard-mode-switch" role="group" aria-label="Dashboard mode">
+            <button id="simpleDashButton" class="dash-mode-button active" type="button">Simple</button>
+            <button id="advancedDashButton" class="dash-mode-button" type="button">Advanced</button>
+          </div>
+          <div class="dashboard-clock">
+            <small>Local interface time</small>
+            <strong id="dashboardClock">--:--:--</strong>
+          </div>
+        </div>
+      </div>
+
+      <div id="simpleDashboardView" class="dashboard-mode-view active">
+      <div class="status-grid">
+        <article class="metric-card balance-metric"><span>Balance</span><strong id="metricBalance">—</strong><small id="metricAccount">No account data</small><i class="metric-icon">$</i></article>
+        <article class="metric-card"><span>Open positions</span><strong id="metricOpen">0 / 0</strong><small id="metricSlots">0 available</small><i class="metric-icon">↗</i></article>
+        <article class="metric-card"><span>Session P/L</span><strong id="metricProfit">0.00</strong><small id="metricOpenProfit">Open P/L 0.00</small><i class="metric-icon">∆</i></article>
+        <article class="metric-card"><span>Win rate</span><strong id="metricWinRate">0.0%</strong><small id="metricRecord">0 wins · 0 losses</small><i class="metric-icon">%</i></article>
+        <article class="metric-card signal-metric"><span>Current signal</span><strong id="metricSignal">WAITING</strong><small id="metricQuote">Quote —</small><i class="metric-icon">⌁</i></article>
+        <article class="metric-card"><span>Runtime</span><strong id="metricRuntime">00:00:00</strong><small id="metricMode">Stopped</small><i class="metric-icon">◷</i></article>
+      </div>
+
+      <div class="analytics-layout">
+        <article class="card chart-card equity-card">
+          <div class="card-header">
+            <div><h2>Equity curve</h2><p>Cumulative closed-trade profit from the loaded history.</p></div>
+            <div class="chart-legend"><span></span>Closed P/L</div>
+          </div>
+          <div class="chart-stage large"><canvas id="equityChart" aria-label="Cumulative trade profit chart"></canvas><div id="equityEmpty" class="chart-empty">Trade history will appear here</div></div>
+          <div class="chart-stats">
+            <div><span>Profit factor</span><strong id="statProfitFactor">—</strong></div>
+            <div><span>Average trade</span><strong id="statAverageTrade">0.00</strong></div>
+            <div><span>Max drawdown</span><strong id="statDrawdown">0.00</strong></div>
+            <div><span>Best / worst</span><strong id="statBestWorst">0.00 / 0.00</strong></div>
+          </div>
+        </article>
+
+        <article class="card chart-card quote-card">
+          <div class="card-header">
+            <div><h2>Quote pulse</h2><p>Recent values captured by dashboard polling.</p></div>
+            <span id="quoteTrend" class="micro-badge neutral">Waiting</span>
+          </div>
+          <div class="quote-value"><span>Latest quote</span><strong id="liveQuoteValue">—</strong></div>
+          <div class="chart-stage small"><canvas id="quoteChart" aria-label="Recent quote movement chart"></canvas><div id="quoteEmpty" class="chart-empty">Waiting for live quotes</div></div>
+          <div class="signal-panel">
+            <div><span>Signal state</span><strong id="signalState">WAITING</strong></div>
+            <div><span>Market direction</span><strong id="signalDirection">NEUTRAL</strong></div>
+          </div>
+        </article>
+      </div>
+
+      <article id="candleWatchCard" class="card candle-watch hidden">
+        <div class="card-header"><div><h2>Live Candlestick Watch</h2><p>OHLC candles can be aligned to real chart timeframes. Default is 1 minute (60 seconds), matching a 1m chart.</p></div><span id="candleWatchBadge" class="micro-badge neutral">Waiting</span></div>
+        <div class="candle-watch-grid">
+          <div><span>Progress</span><strong id="candleWatchProgress">—</strong></div>
+          <div><span>Completed pattern</span><strong id="candleWatchDetected">NONE</strong></div><div><span>Live candidates</span><strong id="candleWatchCandidates">NONE</strong></div>
+          <div><span>Pattern score</span><strong id="candleWatchScore">—</strong></div>
+          <div><span>Confirmation</span><strong id="candleWatchConfirm">—</strong></div>
+          <div><span>Pending</span><strong id="candleWatchPending">NONE</strong></div>
+          <div><span>Current OHLC</span><strong id="candleWatchOhlc">—</strong></div>
+        </div>
+        <div class="candle-shape-readout"><div class="shape-meter-row"><span>Body <strong id="candleBodyPct">—</strong></span><div class="shape-meter"><i id="candleBodyBar"></i></div></div><div class="shape-meter-row"><span>Upper wick <strong id="candleUpperPct">—</strong></span><div class="shape-meter"><i id="candleUpperBar"></i></div></div><div class="shape-meter-row"><span>Lower wick <strong id="candleLowerPct">—</strong></span><div class="shape-meter"><i id="candleLowerBar"></i></div></div></div>
+      </article>
+
+      <div class="operations-layout">
+        <article class="card positions-card">
+          <div class="card-header">
+            <div><h2>Open positions</h2><p>Live contracts, protected profit, and current result.</p></div>
+            <span id="positionCountBadge" class="micro-badge neutral">0 active</span>
+          </div>
+          <div class="position-health" id="positionHealth">
+            <span><i class="health-dot"></i><strong id="positionManagedCount">0</strong> managed</span>
+            <span><strong id="positionSubscribedCount">0</strong> subscribed</span>
+            <span><strong id="positionExternalCount">0</strong> external</span>
+            <span id="positionSyncState" class="position-sync-state">synced</span>
+          </div>
+          <div class="table-wrap compact">
+            <table>
+              <thead><tr><th>Contract</th><th>Direction</th><th>Stake</th><th>Server TP</th><th>P/L</th><th>Peak</th><th>Floor</th><th>Status</th></tr></thead>
+              <tbody id="positionsBody"><tr><td colspan="8" class="empty">No open positions</td></tr></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="card session-card">
+          <div class="card-header">
+            <div><h2>Session intelligence</h2><p>Active controls, capital allocation, and outcome balance.</p></div>
+          </div>
+          <div class="session-aside">
+            <div class="allocation-meter">
+              <div class="allocation-heading">
+                <span>Capital allocation</span>
+                <strong id="allocationText">0%</strong>
+              </div>
+              <div class="allocation-track"><span id="allocationBar" class="allocation-fill"></span></div>
+              <small id="allocationDetail">No capital currently allocated</small>
+            </div>
+            <div class="outcome-panel">
+              <div class="outcome-ring" id="outcomeRing" style="--win-rate: 0%;">
+                <div class="ring-center"><strong id="ringWinRate">0%</strong><small>win rate</small></div>
+              </div>
+              <div class="outcome-meta">
+                <strong id="outcomeRecord">0 wins / 0 losses</strong>
+                <small id="lastTradeResult">No completed trades</small>
+              </div>
+            </div>
+          </div>
+          <dl id="activeSession" class="details-list">
+            <div><dt>Strategy</dt><dd>—</dd></div>
+            <div><dt>Capital</dt><dd>—</dd></div>
+            <div><dt>Split</dt><dd>—</dd></div>
+            <div><dt>Take profit</dt><dd>—</dd></div>
+          </dl>
+        </article>
+      </div>
+
+      <article class="card terminal-card">
+        <div class="card-header">
+          <div><h2>Live console</h2><p>Raw bot output. The browser keeps the newest lines visible.</p></div>
+          <button id="clearConsoleButton" class="button secondary small">Clear view</button>
+        </div>
+        <pre id="consoleOutput" class="terminal">Dr Exploit Control online. Configure a session, then deploy the bot.</pre>
+      </article>
+      </div>
+
+      <div id="advancedDashboardView" class="dashboard-mode-view advanced-dashboard advanced-dashboard-v220 hidden">
+        <div class="advanced-command-bar advanced-command-bar-v220">
+          <div>
+            <div class="eyebrow">ADVANCED OPS · MODULAR COMMAND DECK</div>
+            <h3>Operator workspace</h3>
+            <p>Dock account intelligence at the sides, keep the live candle monitor central, and switch Control / Protection / Strategy / Sizing from one tabbed command deck.</p>
+          </div>
+          <div class="advanced-command-actions">
+            <span id="advControlState" class="badge neutral">Runtime control idle</span>
+            <button id="advPauseEntries" class="button secondary" type="button">Pause entries</button>
+            <button id="advResumeEntries" class="button secondary" type="button">Resume entries</button>
+            <button id="advApplySessionLive" class="button primary" type="button">Apply Session page live</button>
+            <button id="advEditLayout" class="button secondary" type="button">Customize workspace</button>
+          </div>
+        </div>
+
+        <div id="advTelemetryRail" class="advanced-telemetry-rail">
+          <div><span class="status-dot" id="advTopApiDot"></span><small>DERIV API</small><strong id="advTopApi">OFFLINE</strong></div>
+          <div><small>BOT</small><strong id="advTopBot">STOPPED</strong></div>
+          <div><small>ACCOUNT</small><strong id="advTopAccount">—</strong></div>
+          <div><small>MODE</small><strong id="advTopMode">—</strong></div>
+          <div><small>SYMBOL</small><strong id="advTopSymbol">—</strong></div>
+          <div><small>QUOTE</small><strong id="advTopQuote">—</strong></div>
+          <div><small>POSITIONS</small><strong id="advTopOpen">0 / 0</strong></div>
+          <div><small>TELEMETRY</small><strong id="advTopAge">—</strong></div>
+        </div>
+
+        <div id="advLayoutToolbar" class="advanced-layout-toolbar advanced-layout-toolbar-v220 hidden">
+          <div><strong>Workspace editor</strong><small>Drag widgets between TOP / LEFT / CENTER / RIGHT / BOTTOM. Use each widget's dock, size, focus and hide controls.</small></div>
+          <label>Preset <select id="advLayoutPreset"><option value="">Current layout</option></select></label>
+          <label>Left <select id="advLeftWidth"><option value="260">260px</option><option value="300">300px</option><option value="340" selected>340px</option><option value="400">400px</option><option value="460">460px</option></select></label>
+          <label>Right <select id="advRightWidth"><option value="300">300px</option><option value="360" selected>360px</option><option value="420">420px</option><option value="480">480px</option><option value="560">560px</option></select></label>
+          <label>Density <select id="advDensity"><option value="comfortable">Comfortable</option><option value="compact">Compact</option><option value="dense">Dense</option></select></label>
+          <label class="advanced-inline-check"><input id="advShowTopRail" type="checkbox" checked> Top rail</label>
+          <button id="advSaveLayout" class="button primary small" type="button">Save layout</button>
+          <button id="advResetLayout" class="button secondary small" type="button">Reset default</button>
+          <button id="advWidgetLibrary" class="button secondary small" type="button">Widgets</button>
+          <button id="advDoneLayout" class="button secondary small" type="button">Done</button>
+        </div>
+        <div id="advWidgetLibraryPanel" class="advanced-widget-library hidden"></div>
+
+        <div id="advancedWidgetGrid" class="advanced-workspace-v220">
+          <section class="advanced-zone advanced-zone-top" data-adv-zone="top">
+            <div class="advanced-zone-label">TOP DOCK</div>
+            <div class="advanced-zone-body"></div>
+          </section>
+
+          <div class="advanced-workspace-main-v220">
+            <section class="advanced-zone advanced-zone-left" data-adv-zone="left">
+              <div class="advanced-zone-label">LEFT DOCK</div>
+              <div class="advanced-zone-body">
+                <article class="card advanced-widget" draggable="false" data-widget-id="account" data-span="1" data-height="normal">
+                  <div class="advanced-widget-head"><div><span class="widget-kicker">ACCOUNT</span><h3>Account & capital</h3></div><div class="widget-controls"></div></div>
+                  <div class="advanced-stat-grid">
+                    <div><span>Balance</span><strong id="advBalance">—</strong></div><div><span>Account</span><strong id="advAccount">—</strong></div>
+                    <div><span>Allocated capital</span><strong id="advCapital">—</strong></div><div><span>Effective capital</span><strong id="advEffectiveCapital">—</strong></div>
+                    <div><span>Stake / slot</span><strong id="advStakeSlot">—</strong></div><div><span>Available slots</span><strong id="advAvailableSlots">—</strong></div>
+                    <div><span>Open exposure</span><strong id="advExposure">—</strong></div><div><span>Est. free funds</span><strong id="advFreeFunds">—</strong></div>
+                    <div><span>Open / max</span><strong id="advOpenMax">—</strong></div><div><span>Capital usage</span><strong id="advCapitalUsage">—</strong></div>
+                  </div>
+                  <div class="advanced-meter"><div><span>Allocation heat</span><strong id="advAllocationHeat">0%</strong></div><i><b id="advAllocationHeatBar"></b></i></div>
+                </article>
+
+                <article class="card advanced-widget" data-widget-id="performance" data-span="1" data-height="normal">
+                  <div class="advanced-widget-head"><div><span class="widget-kicker">PERFORMANCE</span><h3>Live performance</h3></div><div class="widget-controls"></div></div>
+                  <div class="advanced-stat-grid">
+                    <div><span>Realized P/L</span><strong id="advRealized">0.00</strong></div><div><span>Open P/L</span><strong id="advOpenPl">0.00</strong></div>
+                    <div><span>Total session P/L</span><strong id="advTotalPl">0.00</strong></div><div><span>Return on allocation</span><strong id="advRoi">0.00%</strong></div>
+                    <div><span>Trades</span><strong id="advTrades">0</strong></div><div><span>Win rate</span><strong id="advWinRate">0%</strong></div>
+                    <div><span>Loss streak</span><strong id="advLossStreak">0</strong></div><div><span>Runtime</span><strong id="advRuntime">00:00:00</strong></div>
+                    <div><span>Profit factor</span><strong id="advProfitFactor">—</strong></div><div><span>Max drawdown</span><strong id="advDrawdown">0.00</strong></div>
+                    <div><span>Average win</span><strong id="advAvgWin">0.00</strong></div><div><span>Average loss</span><strong id="advAvgLoss">0.00</strong></div>
+                  </div>
+                </article>
+
+                <article class="card advanced-widget" data-widget-id="account-api" data-span="1" data-height="normal">
+                  <div class="advanced-widget-head"><div><span class="widget-kicker">MONEY API</span><h3>Account activity</h3><p>Read-only account snapshot from a separate authenticated Deriv connection.</p></div><div class="widget-controls"></div></div>
+                  <div class="advanced-stat-grid">
+                    <div><span>API balance</span><strong id="advApiBalance">—</strong></div><div><span>Portfolio</span><strong id="advApiPortfolioCount">—</strong></div>
+                    <div><span>Statement rows</span><strong id="advApiStatementCount">—</strong></div><div><span>Profit rows</span><strong id="advApiProfitCount">—</strong></div>
+                    <div><span>Recent deposits</span><strong id="advApiDeposits">—</strong></div><div><span>Recent withdrawals</span><strong id="advApiWithdrawals">—</strong></div>
+                    <div class="wide-stat"><span>Last account activity</span><strong id="advApiLastActivity">—</strong></div>
+                  </div>
+                  <div class="advanced-control-actions">
+                    <button id="advRefreshAccountApi" class="button secondary small" type="button">Refresh account API</button>
+                    <button id="advOpenFunding" class="button primary small" type="button">Open Deriv Wallet</button>
+                  </div>
+                  <div id="advAccountApiState" class="advanced-queue-note">Account API has not been refreshed yet.</div>
+                  <div class="advanced-activity-list" id="advAccountActivity"><div class="empty">No statement activity loaded</div></div>
+                  <div class="advanced-api-note">Normal trading tokens can read balance/portfolio/statement. Direct real-money deposits are not exposed as a generic trading-token action; Deriv's transfer API is for registered payment agents with payment permission.</div>
+                </article>
+              </div>
+            </section>
+
+            <section class="advanced-zone advanced-zone-center" data-adv-zone="center">
+              <div class="advanced-zone-label">CENTER WORKSPACE</div>
+              <div class="advanced-zone-body">
+                <article class="card advanced-widget advanced-candle-command" data-widget-id="candle-monitor" data-span="2" data-height="tall">
+                  <div class="advanced-widget-head"><div><span class="widget-kicker">LIVE CANDLE</span><h3>Candlestick monitor</h3><p>Current forming candle, shape geometry, pattern candidates, confirmation and pending entry state.</p></div><div class="widget-controls"></div></div>
+                  <div class="advanced-candle-layout">
+                    <div class="advanced-candle-visual-wrap">
+                      <div id="advCandleVisual" class="advanced-live-candle neutral" aria-label="Live candle shape">
+                        <i class="candle-wick"></i><b class="candle-body"></b><span class="candle-price" id="advCandleVisualPrice">—</span>
+                      </div>
+                      <div class="advanced-candle-direction"><small>Direction</small><strong id="advCandleDirection">NEUTRAL</strong></div>
+                    </div>
+                    <div class="advanced-candle-data">
+                      <div class="advanced-stat-grid">
+                        <div><span>Progress</span><strong id="advCandleProgress">—</strong></div><div><span>Completed pattern</span><strong id="advCandleDetected">NONE</strong></div>
+                        <div><span>Pattern score</span><strong id="advCandleScore">—</strong></div><div><span>Confirmation</span><strong id="advCandleConfirm">—</strong></div>
+                        <div><span>Pending</span><strong id="advCandlePending">NONE</strong></div><div><span>Live candidates</span><strong id="advCandleCandidates">NONE</strong></div>
+                        <div class="wide-stat"><span>Current OHLC</span><strong id="advCandleOhlc">—</strong></div>
+                      </div>
+                      <div class="candle-shape-readout advanced-candle-meters">
+                        <div class="shape-meter-row"><span>Body <strong id="advCandleBodyPct">—</strong></span><div class="shape-meter"><i id="advCandleBodyBar"></i></div></div>
+                        <div class="shape-meter-row"><span>Upper wick <strong id="advCandleUpperPct">—</strong></span><div class="shape-meter"><i id="advCandleUpperBar"></i></div></div>
+                        <div class="shape-meter-row"><span>Lower wick <strong id="advCandleLowerPct">—</strong></span><div class="shape-meter"><i id="advCandleLowerBar"></i></div></div>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+
+                <article class="card advanced-widget" data-widget-id="engine" data-span="2" data-height="normal">
+                  <div class="advanced-widget-head"><div><span class="widget-kicker">ENGINE</span><h3>Signal engine internals</h3></div><div class="widget-controls"></div></div>
+                  <div class="advanced-stat-grid advanced-engine-grid">
+                    <div><span>Strategy</span><strong id="advStrategy">—</strong></div><div><span>Signal</span><strong id="advSignal">WAITING</strong></div>
+                    <div><span>Quote</span><strong id="advQuote">—</strong></div><div><span>Cooldown</span><strong id="advCooldown">0</strong></div>
+                    <div><span>Neutral re-arm</span><strong id="advNeutralRearm">No</strong></div><div><span>Batch opening</span><strong id="advBatchOpening">No</strong></div>
+                  </div>
+                  <details class="advanced-json"><summary>Raw strategy metrics</summary><pre id="advStrategyMetrics">{}</pre></details>
+                </article>
+
+                <article class="card advanced-widget" data-widget-id="positions" data-span="2" data-height="tall">
+                  <div class="advanced-widget-head"><div><span class="widget-kicker">POSITIONS</span><h3>Position monitor</h3><p>Entry, current quote, peak/worst excursion, profit protection, Smart Loss and close state.</p></div><div class="widget-controls"></div></div>
+                  <div class="table-wrap"><table class="advanced-position-table"><thead><tr><th>ID</th><th>Side</th><th>Stake</th><th>Entry</th><th>Quote</th><th>P/L</th><th>Peak</th><th>Worst</th><th>Trail floor</th><th>Protection</th><th>Loss guard</th><th>Status</th></tr></thead><tbody id="advPositionsBody"><tr><td colspan="12" class="empty">No active positions</td></tr></tbody></table></div>
+                </article>
+
+                <article class="card advanced-widget" data-widget-id="recent-trades" data-span="1" data-height="normal">
+                  <div class="advanced-widget-head"><div><span class="widget-kicker">HISTORY</span><h3>Recent trades</h3></div><div class="widget-controls"></div></div>
+                  <div id="advRecentTrades" class="advanced-trade-feed"><div class="empty">No trades recorded</div></div>
+                </article>
+              </div>
+            </section>
+
+            <section class="advanced-zone advanced-zone-right" data-adv-zone="right">
+              <div class="advanced-zone-label">RIGHT DOCK</div>
+              <div class="advanced-zone-body">
+                <article class="card advanced-widget advanced-control-deck" data-widget-id="control-deck" data-span="1" data-height="tall">
+                  <div class="advanced-widget-head"><div><span class="widget-kicker">COMMAND DECK</span><h3>Live control stack</h3><p>Swap tabs instead of filling the side dock with separate control cards.</p></div><div class="widget-controls"></div></div>
+                  <div class="advanced-deck-tabs" role="tablist" aria-label="Advanced live control tabs">
+                    <button class="active" type="button" data-adv-deck-tab="control">Control</button>
+                    <button type="button" data-adv-deck-tab="protection">Protection</button>
+                    <button type="button" data-adv-deck-tab="strategy">Strategy</button>
+                    <button type="button" data-adv-deck-tab="sizing">Sizing</button>
+                  </div>
+
+                  <div class="advanced-deck-panel active" data-adv-deck-panel="control">
+                    <form id="advLiveControlForm" class="advanced-control-grid">
+                      <label><span>Max open</span><input id="advCtlMaxOpen" type="number" min="1" max="50"></label>
+                      <label><span>Trades / signal</span><input id="advCtlTradesPerSignal" type="number" min="1" max="50"></label>
+                      <label><span>Split delay (sec)</span><input id="advCtlSplitDelay" type="number" min="0" max="3600" step="0.1"></label>
+                      <label><span>Multiplier</span><select id="advCtlMultiplier"><option>750</option><option>2000</option><option>3500</option><option>5500</option><option>7500</option></select></label>
+                      <label><span>TP mode</span><select id="advCtlTpMode"><option value="fixed">Fixed</option><option value="adaptive">Adaptive</option><option value="smart">Smart</option><option value="hybrid">Hybrid</option></select></label>
+                      <label><span>TP unit</span><select id="advCtlTpUnit"><option value="amount">Amount</option><option value="ticks">Ticks</option></select></label>
+                      <label><span>TP minimum</span><input id="advCtlTp" type="number" min="0" step="0.01"></label>
+                      <label><span>TP maximum</span><input id="advCtlTpMax" type="number" min="0" step="0.01"></label>
+                      <label><span>TP ticks</span><input id="advCtlTpTicks" type="number" min="1"></label>
+                      <label><span>TP ticks max</span><input id="advCtlTpTicksMax" type="number" min="1"></label>
+                      <label><span>Server stop loss</span><input id="advCtlServerSl" type="number" min="0" step="0.01"></label>
+                      <label><span>Loss policy</span><select id="advCtlLossPolicy"><option value="continue">Continue</option><option value="first">First loss</option><option value="consecutive">Consecutive</option><option value="total">Total</option></select></label>
+                      <label><span>Loss count</span><input id="advCtlLossCount" type="number" min="1"></label>
+                      <label><span>Profit target</span><input id="advCtlProfitTarget" type="number" min="0" step="0.01"></label>
+                      <label><span>Loss limit</span><input id="advCtlLossLimit" type="number" min="0" step="0.01"></label>
+                      <label><span>Win target</span><input id="advCtlWinTarget" type="number" min="0"></label>
+                    </form>
+                    <div class="advanced-control-actions"><button id="advLoadControls" class="button secondary small" type="button">Load active</button><button id="advApplyControls" class="button primary" type="button">Apply live</button></div>
+                  </div>
+
+                  <div class="advanced-deck-panel" data-adv-deck-panel="protection">
+                    <form id="advProtectionForm" class="advanced-control-grid">
+                      <label><span>Smart activation</span><input id="advCtlSmartActivation" type="number" min="0" step="0.01"></label>
+                      <label><span>Profit floor</span><input id="advCtlSmartFloor" type="number" min="0" step="0.01"></label>
+                      <label><span>Trail %</span><input id="advCtlSmartTrail" type="number" min="0" max="100" step="0.1"></label>
+                      <label><span>Min distance</span><input id="advCtlSmartDistance" type="number" min="0" step="0.01"></label>
+                      <label class="advanced-check"><input id="advCtlSmartLossEnabled" type="checkbox"><span>Smart Loss enabled</span></label>
+                      <label><span>Soft trigger</span><input id="advCtlSmartLossSoft" type="number" min="0.01" step="0.01"></label>
+                      <label><span>Recovery reset</span><input id="advCtlSmartLossReset" type="number" min="0" step="0.01"></label>
+                      <label><span>Hard cap</span><input id="advCtlSmartLossHard" type="number" min="0.01" step="0.01"></label>
+                    </form>
+                    <div class="advanced-control-actions"><button id="advApplyProtection" class="button primary" type="button">Apply protection live</button></div>
+                  </div>
+
+                  <div class="advanced-deck-panel" data-adv-deck-panel="strategy">
+                    <div class="advanced-strategy-live">
+                      <label><span>Runtime strategy</span><select id="advRuntimeStrategy"></select></label>
+                      <p id="advStrategyLiveNote">Changing the strategy reloads only the signal engine. The bot process and open-position management stay alive.</p>
+                      <button id="advApplyStrategyLive" class="button primary" type="button">Apply Strategy Config live</button>
+                    </div>
+                  </div>
+
+                  <div class="advanced-deck-panel" data-adv-deck-panel="sizing">
+                    <form class="advanced-control-grid">
+                      <label><span>Capital</span><input id="advCtlCapital" type="number" min="0.35" step="0.01"></label>
+                      <label><span>Split count</span><input id="advCtlSplit" type="number" min="1" max="50"></label>
+                      <label class="advanced-check"><input id="advCtlCompound" type="checkbox"><span>Compounding</span></label>
+                    </form>
+                    <div id="advPendingFlat" class="advanced-queue-note">No queued sizing changes.</div>
+                    <div class="advanced-control-actions"><button id="advApplySizing" class="button primary" type="button">Queue / apply sizing</button></div>
+                  </div>
+                </article>
+
+                <article class="card advanced-widget" data-widget-id="connection" data-span="1" data-height="compact">
+                  <div class="advanced-widget-head"><div><span class="widget-kicker">LINK</span><h3>API & reconnect health</h3></div><div class="widget-controls"></div></div>
+                  <div class="advanced-stat-grid">
+                    <div><span>Link</span><strong id="advLink">—</strong></div><div><span>Reconnect successes</span><strong id="advReconnects">0</strong></div>
+                    <div><span>Attempts</span><strong id="advReconnectAttempts">0</strong></div><div><span>Failures</span><strong id="advReconnectFailures">0</strong></div>
+                    <div class="wide-stat"><span>Last reconnect error</span><strong id="advReconnectError">None</strong></div>
+                  </div>
+                </article>
+
+                <article class="card advanced-widget" data-widget-id="runtime-audit" data-span="1" data-height="compact">
+                  <div class="advanced-widget-head"><div><span class="widget-kicker">RUNTIME</span><h3>Live control state</h3></div><div class="widget-controls"></div></div>
+                  <div class="advanced-stat-grid">
+                    <div><span>Revision</span><strong id="advRevision">0</strong></div><div><span>State</span><strong id="advRevisionState">Ready</strong></div>
+                    <div class="wide-stat"><span>Last update</span><strong id="advRevisionMessage">No live changes applied</strong></div>
+                  </div>
+                  <details class="advanced-json"><summary>Active runtime settings</summary><pre id="advActiveSettings">{}</pre></details>
+                </article>
+              </div>
+            </section>
+          </div>
+
+          <section class="advanced-zone advanced-zone-bottom" data-adv-zone="bottom">
+            <div class="advanced-zone-label">BOTTOM DOCK</div>
+            <div class="advanced-zone-body">
+              <article class="card advanced-widget" data-widget-id="advanced-console" data-span="2" data-height="compact">
+                <div class="advanced-widget-head"><div><span class="widget-kicker">CONSOLE</span><h3>Live runtime console</h3><p>Mirrors the main console so the Advanced workspace can stay open while troubleshooting.</p></div><div class="widget-controls"></div></div>
+                <pre id="advConsoleOutput" class="terminal advanced-terminal">Dr Exploit Control online.</pre>
+              </article>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+
+<section id="tab-rise-fall" class="panel tab-panel rise-fall-panel">
+  <div class="rf-hero">
+    <div>
+      <div class="eyebrow">DEDICATED OPTIONS ENGINE · STEP 100 INDEX</div>
+      <h2>Rise / Fall NOW</h2>
+      <p>A separate CALL / PUT auto-trading engine with its own capital, duration, directional model, live proposal odds, session limits and controls.</p>
+    </div>
+    <div class="rf-hero-actions">
+      <span id="rfEngineBadge" class="badge neutral">Stopped</span>
+      <button id="rfPauseButton" class="button secondary" type="button" disabled>Pause entries</button>
+      <button id="rfResumeButton" class="button secondary" type="button" disabled>Resume</button>
+      <button id="rfStopButton" class="button danger" type="button" disabled>Stop new entries</button>
+      <button id="rfStartButton" class="button primary" type="button">Deploy Rise/Fall</button>
+    </div>
+  </div>
+
+  <div class="rf-top-rail">
+    <div><span>API / Engine</span><strong id="rfApiState">Idle</strong></div>
+    <div><span>Market</span><strong id="rfMarket">Step 100 Index</strong></div>
+    <div><span>Live quote</span><strong id="rfQuote">—</strong></div>
+    <div><span>Balance</span><strong id="rfBalance">—</strong></div>
+    <div><span>Stake / trade</span><strong id="rfStake">—</strong></div>
+    <div><span>Open</span><strong id="rfOpen">0</strong></div>
+    <div><span>Session P/L</span><strong id="rfProfit">0.00</strong></div>
+    <div><span>W / L</span><strong id="rfRecord">0 / 0</strong></div>
+    <div><span>Cooldown</span><strong id="rfCooldown">0</strong></div>
+  </div>
+
+  <div class="rf-workspace">
+    <div class="rf-main-column">
+      <article class="card rf-market-card">
+        <div class="card-header"><div><div class="eyebrow">LIVE STEP 100</div><h3>Direction + odds monitor</h3><p>Model confidence and current Deriv proposal return are shown separately, then combined for Best Odds Auto.</p></div><span id="rfDecisionBadge" class="micro-badge neutral">WAIT</span></div>
+        <div class="rf-chart"><canvas id="rfChart"></canvas><div id="rfChartEmpty" class="chart-empty">Waiting for Step 100 ticks…</div></div>
+        <div class="rf-odds-grid">
+          <section class="rf-odds-side rise"><div class="rf-odds-title"><span>↑</span><div><small id="rfRiseContractCode">CALL</small><strong>RISE</strong></div></div><div class="rf-odds-metrics"><div><span>Model confidence</span><strong id="rfRiseConfidence">—</strong></div><div><span>Live return</span><strong id="rfRiseReturn">—</strong></div><div><span>Payout</span><strong id="rfRisePayout">—</strong></div><div><span>Break-even</span><strong id="rfRiseBreakEven">—</strong></div><div><span>Combined score</span><strong id="rfRiseScore">—</strong></div></div></section>
+          <section class="rf-center-decision"><small>BEST ODDS AUTO</small><strong id="rfBestDirection">WAIT</strong><div id="rfBestReason">Waiting for enough history and live proposals.</div><div class="rf-confidence-meter"><i id="rfConfidenceBar"></i></div><span id="rfConfidenceText">0% confidence</span></section>
+          <section class="rf-odds-side fall"><div class="rf-odds-title"><span>↓</span><div><small id="rfFallContractCode">PUT</small><strong>FALL</strong></div></div><div class="rf-odds-metrics"><div><span>Model confidence</span><strong id="rfFallConfidence">—</strong></div><div><span>Live return</span><strong id="rfFallReturn">—</strong></div><div><span>Payout</span><strong id="rfFallPayout">—</strong></div><div><span>Break-even</span><strong id="rfFallBreakEven">—</strong></div><div><span>Combined score</span><strong id="rfFallScore">—</strong></div></div></section>
+        </div>
+        <div class="rf-signal-strip"><span>RSI <strong id="rfRsi">—</strong></span><span>Momentum ↑ <strong id="rfMomentumUp">—</strong></span><span>Momentum ↓ <strong id="rfMomentumDown">—</strong></span><span>Range position <strong id="rfRangePosition">—</strong></span><span>Model edge <strong id="rfModelEdge">—</strong></span><span>Volatility <strong id="rfVolatility">—</strong></span></div>
+      </article>
+
+      <article class="card">
+        <div class="card-header"><div><h3>Open Rise/Fall contracts</h3><p>Fixed-expiry CALL / PUT positions opened by this dedicated engine only.</p></div><span id="rfPositionCount" class="micro-badge neutral">0 active</span></div>
+        <div class="table-wrap compact"><table><thead><tr><th>Contract</th><th>Direction</th><th>Stake</th><th>Payout</th><th>Entry</th><th>Duration</th><th>P/L</th><th>Status</th></tr></thead><tbody id="rfPositionsBody"><tr><td colspan="8" class="empty">No Rise/Fall positions</td></tr></tbody></table></div>
+      </article>
+
+      <article class="card">
+        <div class="card-header"><div><h3>Rise/Fall history</h3><p>Persistent CALL / PUT results, separate from your multiplier trade history.</p></div><div class="rf-history-summary"><span id="rfHistoryTrades">0 trades</span><span id="rfHistoryWinRate">0.0% wins</span><strong id="rfHistoryProfit">0.00</strong></div></div>
+        <div class="table-wrap compact"><table><thead><tr><th>Closed UTC</th><th>Direction</th><th>Result</th><th>Stake</th><th>P/L</th><th>Duration</th><th>Engine</th></tr></thead><tbody id="rfResultsBody"><tr><td colspan="7" class="empty">No completed Rise/Fall trades</td></tr></tbody></table></div>
+      </article>
+    </div>
+
+    <aside class="rf-control-column">
+      <article class="card rf-preset-card">
+        <div class="card-header"><div><div class="eyebrow">RISE/FALL CONFIG LIBRARY</div><h3>Save, load & share setups</h3><p>Presets contain only this Rise/Fall engine's configuration. Credentials are never included.</p></div><span id="rfPresetCount" class="micro-badge neutral">0 saved</span></div>
+        <div class="rf-preset-grid">
+          <label class="field wide"><span>Saved Rise/Fall setup</span><select id="rfPresetSelect"><option value="">Choose a saved setup…</option></select><small>Selecting one loads it into the Rise/Fall configuration form.</small></label>
+          <label class="field wide"><span>Preset name</span><input id="rfPresetName" maxlength="60" autocomplete="off" placeholder="Example: 3 Tick Selective"></label>
+          <button id="rfPresetSave" class="button primary" type="button">Save current</button>
+          <button id="rfPresetDownload" class="button secondary" type="button" disabled>Download JSON</button>
+          <button id="rfPresetUpload" class="button secondary" type="button">Upload JSON</button>
+          <button id="rfPresetDelete" class="button danger" type="button" disabled>Delete</button>
+          <input id="rfPresetFile" type="file" accept="application/json,.json" hidden>
+        </div>
+        <div class="rf-optimizer-box">
+          <div><strong>Optimization export</strong><p>Downloads sanitized Rise/Fall history, entry-time signal/proposal data, configuration snapshots and performance breakdowns for setup tuning.</p></div>
+          <div class="rf-optimizer-actions"><button id="rfOptimizationMd" class="button primary small" type="button">Download optimization .MD</button><button id="rfOptimizationJson" class="button secondary small" type="button">Download raw .JSON</button></div>
+        </div>
+      </article>
+
+      <article class="card rf-control-card">
+        <div class="card-header"><div><div class="eyebrow">OWN CONFIGURATION</div><h3>Rise/Fall auto engine</h3><p>These settings belong only to the CALL / PUT bot.</p></div></div>
+        <form id="riseFallForm">
+          <div class="rf-config-tabs" role="tablist">
+            <button type="button" class="active" data-rf-config-tab="trade">Trade</button><button type="button" data-rf-config-tab="model">Model</button><button type="button" data-rf-config-tab="risk">Risk</button><button type="button" data-rf-config-tab="live">Live</button>
+          </div>
+          <div class="rf-config-page active" data-rf-config-page="trade">
+            <label class="field"><span>Mode</span><select name="mode"><option value="signals">Signals only</option><option value="demo">Demo auto trade</option><option value="live">REAL auto trade</option></select></label>
+            <label class="field"><span>Capital allocation</span><input name="capital" type="number" min="0.35" step="0.01"></label>
+            <div class="form-grid two"><label class="field"><span>Split slots</span><input name="split" type="number" min="1" max="50"></label><label class="field"><span>Max open</span><input name="max_open" type="number" min="1" max="50"></label></div>
+            <div class="form-grid two"><label class="field"><span>Trades per signal</span><input name="trades_per_signal" type="number" min="1" max="50"></label><label class="field"><span>Split delay (sec)</span><input name="split_delay" type="number" min="0" step="0.1"></label></div>
+            <label class="field checkbox-field"><input name="compound" type="checkbox"><span><strong>Compound when flat</strong><small>Recalculate split stake from capital + realized Rise/Fall P/L.</small></span></label>
+            <div class="form-grid two"><label class="field"><span>Contract duration</span><input name="duration" type="number" min="1"></label><label class="field"><span>Duration unit</span><select name="duration_unit"><option value="t">Ticks</option><option value="s">Seconds</option><option value="m">Minutes</option></select></label></div>
+            <label class="field"><span>Direction policy</span><select name="direction_policy"><option value="auto">Auto Rise / Fall</option><option value="rise_only">RISE only</option><option value="fall_only">FALL only</option></select></label>
+          </div>
+          <div class="rf-config-page" data-rf-config-page="model">
+            <label class="field"><span>Decision engine</span><select name="decision_mode"><option value="best_odds">Best Odds Auto</option><option value="consensus">Model consensus</option><option value="trend">Trend only</option><option value="momentum">Momentum only</option><option value="reversal">Reversal only</option></select><small>Best Odds Auto ranks both direction confidence and live proposal return. It does not guarantee the outcome.</small></label>
+            <label class="field"><span>Lookback ticks</span><input name="lookback" type="number" min="6" max="500"></label>
+            <div class="form-grid two"><label class="field"><span>Min confidence</span><input name="min_confidence" type="number" min="0.50" max="0.99" step="0.01"></label><label class="field"><span>Min direction edge</span><input name="min_edge" type="number" min="0" max="0.95" step="0.01"></label></div>
+            <label class="field"><span>Minimum live return %</span><input name="min_return_pct" type="number" min="0" step="0.1"><small>Skip a contract when the current proposal return is below this threshold.</small></label>
+            <div class="rf-weight-grid"><label>Trend <input name="trend_weight" type="number" min="0" step="0.05"></label><label>Momentum <input name="momentum_weight" type="number" min="0" step="0.05"></label><label>Reversal <input name="reversal_weight" type="number" min="0" step="0.05"></label><label>Breakout <input name="breakout_weight" type="number" min="0" step="0.05"></label></div>
+            <div class="form-grid two"><label class="field"><span>Cooldown ticks</span><input name="cooldown_ticks" type="number" min="0"></label><label class="field"><span>Refresh odds every</span><input name="quote_refresh_ticks" type="number" min="1"><small>ticks</small></label></div>
+          </div>
+          <div class="rf-config-page" data-rf-config-page="risk">
+            <label class="field"><span>After a loss</span><select name="loss_policy"><option value="continue">Continue</option><option value="first">Stop after first loss</option><option value="consecutive">Stop after X consecutive losses</option><option value="total">Stop after X total losses</option></select></label>
+            <label class="field"><span>Loss count</span><input name="loss_count" type="number" min="1"></label>
+            <label class="field"><span>Session profit target</span><input name="profit_target" type="number" min="0" step="0.01"><small>0 disables</small></label>
+            <label class="field"><span>Session loss limit</span><input name="loss_limit" type="number" min="0" step="0.01"><small>0 disables</small></label>
+            <label class="field"><span>Stop after wins</span><input name="win_target" type="number" min="0"><small>0 disables</small></label>
+            <div class="notice warning"><strong>Fixed expiry:</strong> Rise/Fall contracts settle at their configured expiry. The multiplier Smart Exit / Smart Loss controls do not apply to this engine.</div>
+          </div>
+          <div class="rf-config-page" data-rf-config-page="live">
+            <div class="rf-live-summary"><div><span>Current engine</span><strong id="rfLiveMode">Stopped</strong></div><div><span>CALL / PUT support</span><strong id="rfContractSupport">Not checked</strong></div><div><span>Runtime revision</span><strong id="rfRevision">0</strong></div></div>
+            <label class="field"><span>Live confirmation</span><input name="live_confirmation" autocomplete="off" placeholder="Type LIVE only for real-money mode"><small>Required only when Mode is REAL auto trade.</small></label>
+            <button id="rfApplyLiveButton" class="button secondary wide" type="button" disabled>Apply configuration live</button>
+            <div class="notice"><strong>Live tuning:</strong> model, duration, filters, max-open and risk rules can change without restarting. Capital/split/compounding queue until current Rise/Fall positions are flat.</div>
+          </div>
+          <div class="rf-form-actions"><button id="rfSaveButton" class="button secondary" type="button">Save Rise/Fall config</button><button id="rfDeployInsideButton" class="button primary" type="button">Deploy Rise/Fall</button></div>
+        </form>
+      </article>
+      <article class="card terminal-card"><div class="card-header"><div><h3>Rise/Fall console</h3><p>Dedicated engine log.</p></div><button id="rfClearConsole" class="button secondary small" type="button">Clear</button></div><pre id="rfConsole" class="terminal">Rise/Fall engine ready.</pre></article>
+    </aside>
+  </div>
+</section>
+
+<section id="tab-session" class="panel tab-panel">
+      <form id="sessionForm">
+        <div class="section-heading">
+          <div><h2>Session setup</h2><p>Choose how the bot trades. These controls become command-line settings for your existing bot.</p></div>
+        </div>
+
+        <article class="card full-preset-card">
+          <div class="full-preset-heading">
+            <div><div class="eyebrow">FULL BOT SNAPSHOTS</div><h3>Saved presets</h3><p>Save Session setup + every Strategy config together. Hybrid/Smart Exit, risk controls, multiplier, trades per signal, candle geometry and all candle sub-types are restored as one preset.</p></div>
+            <span id="presetCountBadge" class="badge neutral">0 saved</span>
+          </div>
+          <div class="full-preset-grid">
+            <label class="field preset-select-field"><span>Load saved preset</span><select id="fullPresetSelect"><option value="">Choose a preset…</option></select><small>Selecting a preset loads it immediately and restores both pages.</small></label>
+            <label class="field preset-name-field"><span>Preset name</span><input id="fullPresetName" maxlength="60" autocomplete="off" placeholder="Example: Hammer strict x750"></label>
+            <button id="saveFullPresetButton" class="button primary" type="button">Save current setup</button>
+            <button id="downloadFullPresetButton" class="button secondary" type="button" disabled>Download selected</button>
+            <button id="importFullPresetButton" class="button secondary" type="button">Import preset JSON</button>
+            <button id="deleteFullPresetButton" class="button danger" type="button" disabled>Delete selected</button>
+            <input id="importFullPresetFile" class="preset-file-input" type="file" accept="application/json,.json" hidden>
+          </div>
+          <div class="preset-share-note"><strong>Share exact setups:</strong> Downloaded preset files include the complete Session + Strategy configuration. Importing one restores the same multiplier, exits, risk controls, strategy settings, candle sub-types and other saved trading options. Credentials, API tokens and account IDs are not included.</div>
+        </article>
+
+        <div class="form-grid">
+          <label class="field"><span>Mode</span><select name="mode" id="mode"><option value="signals">Signals only</option><option value="demo">Demo trading</option><option value="live">Real-money trading</option></select><small>Signals mode never buys.</small></label>
+          <label class="field"><span>Strategy engine</span><select name="strategy_engine" id="sessionStrategyEngine"><option value="single">Single strategy</option><option value="best">Best Mix candidate</option><option value="all">All strategies</option><option value="custom">Custom multi-strategy mix</option></select><small>Multi-strategy modes combine several independent engines before opening a trade.</small></label>
+          <label class="field single-strategy-field"><span>Trading strategy</span><select name="strategy" id="sessionStrategy"></select><small>Used only in Single strategy mode.</small></label>
+          <label class="field single-strategy-field"><span>Strategy configuration</span><select name="strategy_profile" id="sessionStrategyProfile"><option value="custom">Custom saved settings</option><option value="balanced">Balanced</option><option value="fast">Fast</option><option value="strict">Strict</option></select><small>The profile applies only to the selected single strategy.</small></label>
+          <div id="ensemblePanel" class="ensemble-panel hidden">
+            <div class="ensemble-heading"><div><div class="eyebrow">MULTI-STRATEGY ENGINE</div><h3>Strategy Fusion</h3><p>Select the engines that can vote on each entry. Every strategy keeps its own isolated configuration.</p></div><span id="ensembleModeBadge" class="badge neutral">CUSTOM</span></div>
+            <div class="form-grid ensemble-controls">
+              <label class="field"><span>Decision policy</span><select name="ensemble_policy" id="ensemblePolicy"><option value="regime">Regime-aware majority (recommended)</option><option value="majority">Majority vote</option><option value="weighted">Weighted vote</option><option value="any">Any non-conflicting signal (fast)</option><option value="unanimous">Unanimous agreement (strict)</option></select></label>
+              <label class="field"><span>Minimum agreeing strategies</span><input name="ensemble_min_votes" type="number" min="1" max="9" step="1" value="2"><small>Used by majority, regime and weighted modes.</small></label>
+              <label class="field"><span>Signal memory (ticks)</span><input name="ensemble_memory_ticks" type="number" min="0" max="100" step="1" value="8"><small>Lets near-simultaneous signals count together.</small></label>
+              <label class="field"><span>Ensemble confirmations</span><input name="ensemble_confirmations" type="number" min="1" max="20" step="1" value="1"></label>
+              <label class="field"><span>Ensemble cooldown ticks</span><input name="ensemble_cooldown_ticks" type="number" min="0" max="1000" step="1" value="3"></label>
+              <label class="field"><span>Regime lookback</span><input name="ensemble_regime_lookback" type="number" min="5" max="1000" step="1" value="24"></label>
+              <label class="field"><span>Trend threshold</span><input name="ensemble_trend_threshold" type="number" min="0.05" max="0.95" step="0.01" value="0.45"><small>Higher = market must be more directional before trend engines take control.</small></label>
+              <label class="field weighted-policy-only" id="ensembleWeightThresholdField"><span>Weighted score threshold</span><input name="ensemble_weight_threshold" type="number" min="0.1" max="20" step="0.05" value="1.25"><small>Used only by Weighted Vote. REGIME and Majority use agreeing-strategy count instead.</small></label>
+              <label class="field weighted-policy-only" id="ensembleConflictMarginField"><span>Conflict margin</span><input name="ensemble_conflict_margin" type="number" min="0" max="20" step="0.05" value="0.20"><small>Weighted Vote only: winning score must beat the opposite side by this amount.</small></label>
+            </div>
+            <div id="ensembleStrategyGrid" class="ensemble-strategy-grid"></div>
+            <input type="hidden" name="ensemble_strategies" id="ensembleStrategiesHidden">
+            <input type="hidden" name="ensemble_profiles_json" id="ensembleProfilesHidden" value="{}">
+            <input type="hidden" name="ensemble_weights_json" id="ensembleWeightsHidden" value="{}">
+            <div class="notice ensemble-note"><strong>Best Mix candidate:</strong> Bollinger Reversion + Stochastic + Candlestick Patterns for ranging movement, with EMA/RSI + Donchian + Tick Momentum for trending movement. “All strategies” enables every available engine. This is a configurable decision system, not a profit guarantee.</div>
+          </div>
+          <label class="field"><span>Session capital</span><input name="capital" type="number" min="0.35" step="0.01" required></label>
+          <label class="field"><span>Split count</span><input name="split" type="number" min="1" max="50" step="1" required></label>
+          <label class="field"><span>Maximum open trades</span><input name="max_open" type="number" min="1" max="50" step="1" required></label>
+          <label class="field"><span>Trades per signal</span><input name="trades_per_signal" id="tradesPerSignal" type="number" min="1" max="50" step="1" required><small>Exact maximum positions opened for each fresh signal. Cannot exceed Maximum open trades.</small></label>
+          <label class="field"><span>Delay between splits (seconds)</span><input name="split_delay" type="number" min="0" max="3600" step="0.1" required></label>
+          <label class="field"><span>Multiplier</span><select name="multiplier" required><option value="750">×750</option><option value="2000">×2000</option><option value="3500">×3500</option><option value="5500">×5500</option><option value="7500">×7500</option></select><small>Only multipliers offered for Step 100 on this account.</small></label>
+          <label class="field"><span>Emergency server loss cap</span><input name="server_stop_loss" type="number" min="0" step="0.01" value="0"><small>0 disables. This is separate from Smart Loss and remains at Deriv during a local disconnect.</small></label>
+          <label class="field checkbox"><input name="compound" type="checkbox"><span>Enable compounding</span><small>Recalculates slot size only when all positions are flat.</small></label>
+          <label class="field"><span>Loss behavior</span><select name="loss_policy"><option value="continue">Continue after losses</option><option value="first">Stop after first loss</option><option value="consecutive">Stop after consecutive losses</option><option value="total">Stop after total losses</option></select></label>
+          <label class="field"><span>Loss count</span><input name="loss_count" type="number" min="1" max="100000" step="1" required></label>
+          <label class="field"><span>Stop after wins</span><input name="win_target" type="number" min="0" step="1" required><small>0 disables.</small></label>
+          <label class="field"><span>Session profit target</span><input name="profit_target" type="number" min="0" step="0.01" required><small>0 disables.</small></label>
+          <label class="field"><span>Session loss limit</span><input name="loss_limit" type="number" min="0" step="0.01" required><small>0 disables.</small></label>
+          <label class="field"><span>Exit mode</span><select name="take_profit_mode" id="tpMode"><option value="fixed">Fixed take profit</option><option value="adaptive">Adaptive take profit</option><option value="smart">Smart trailing profit</option><option value="hybrid">Hybrid smart exit</option></select><small>Hybrid adds momentum and opposite-signal exits.</small></label>
+          <label class="field" id="tpUnitField"><span>Profit measurement</span><select name="take_profit_unit" id="tpUnit"><option value="amount">Money amount</option><option value="ticks">Step ticks</option></select><small>Available for Fixed, Adaptive, Smart and Hybrid exits. Tick mode measures net favorable Step movement from entry.</small></label>
+          <label class="field tp-amount-field" id="tpBaseField"><span>Minimum / fixed TP amount</span><input name="take_profit" type="number" min="0.10" step="0.01" required></label>
+          <label class="field tp-amount-field" id="tpMaxField"><span>Maximum adaptive TP amount</span><input name="take_profit_max" type="number" min="0.10" step="0.01" required></label>
+          <label class="field tp-tick-field hidden" id="tpTicksField"><span>Minimum / fixed TP ticks</span><input name="take_profit_ticks" type="number" min="1" step="1" required><small>Net favorable Step ticks from entry.</small></label>
+          <label class="field tp-tick-field hidden" id="tpTicksMaxField"><span>Maximum adaptive TP ticks</span><input name="take_profit_ticks_max" type="number" min="1" step="1" required></label>
+          <label class="field tp-tick-field hidden" id="tickTpServerBackupField"><span>Emergency server TP amount</span><input name="tick_tp_server_backup" type="number" min="0.10" step="0.01" required><small>Money TP attached at Deriv while the local bot watches the tick target.</small></label>
+          <label class="field smart-exit-field smart-amount-field"><span>Activate profit protection ($)</span><input name="smart_activation" type="number" min="0.10" step="0.01" required><small>Amount mode: trailing starts after this floating profit.</small></label>
+          <label class="field smart-exit-field smart-amount-field"><span>Minimum protected profit ($)</span><input name="smart_profit_floor" type="number" min="0.10" step="0.01" required><small>Amount mode protected floor.</small></label>
+          <label class="field smart-exit-field smart-tick-field hidden"><span>Activate protection (ticks)</span><input name="smart_activation_ticks" type="number" min="1" step="1" value="3" required><small>Tick mode: trailing starts after this many net favorable Step ticks.</small></label>
+          <label class="field smart-exit-field smart-tick-field hidden"><span>Protected floor (ticks)</span><input name="smart_profit_floor_ticks" type="number" min="1" step="1" value="1" required><small>Hybrid reversal exits are not intentionally sent below this positive tick floor.</small></label>
+          <label class="field smart-exit-field"><span>Trailing giveback (%)</span><input name="smart_trail_percent" type="number" min="1" max="95" step="1" required></label>
+          <label class="field smart-exit-field smart-amount-field"><span>Minimum trail distance ($)</span><input name="smart_min_distance" type="number" min="0.01" step="0.01" required></label>
+          <label class="field smart-exit-field smart-tick-field hidden"><span>Minimum trail distance (ticks)</span><input name="smart_min_distance_ticks" type="number" min="1" step="1" value="1" required></label>
+          <label class="field smart-exit-field hybrid-only"><span>Adverse ticks required</span><input name="smart_adverse_ticks" type="number" min="1" max="20" step="1" required></label>
+          <label class="field smart-exit-field hybrid-only"><span>Adverse tick window</span><input name="smart_adverse_window" type="number" min="1" max="50" step="1" required></label>
+          <label class="field checkbox smart-exit-field hybrid-only"><input name="smart_opposite_signal" type="checkbox"><span>Exit on confirmed opposite signal</span><small>Only after profit protection is active.</small></label>
+          <label class="field smart-exit-field"><span>Emergency server-side TP ($)</span><input name="smart_server_take_profit" type="number" min="0.10" step="0.01" required><small>Always money-based as the disconnect backstop; local tick trailing resumes after reconnect.</small></label>
+
+          <div class="form-subsection-heading smart-loss-heading">
+            <div><span class="eyebrow">RECOVERY-AWARE RISK CONTROL</span><h3>Smart Loss Guard</h3></div>
+            <p>Starts a recovery watch after a soft drawdown instead of instantly selling. It can reset if the trade recovers, rescue a recovered trade near break-even, or exit on a hard cap / confirmed adverse movement. No loss rule can know whether a closed trade would have recovered later.</p>
+          </div>
+          <label class="field checkbox"><input name="smart_loss_enabled" id="smartLossEnabled" type="checkbox"><span>Enable Smart Loss Guard</span><small>Off preserves the old behavior. Test on Demo first.</small></label>
+          <label class="field smart-loss-field"><span>Soft loss trigger</span><input name="smart_loss_soft_trigger" type="number" min="0.01" step="0.01" value="0.60" required><small>At -$this amount, start watching for recovery. Do not sell yet.</small></label>
+          <label class="field smart-loss-field"><span>Recovery reset level</span><input name="smart_loss_reset_level" type="number" min="0" step="0.01" value="0.20" required><small>If P/L recovers to -$this amount or better, cancel the loss watch and let the trade continue.</small></label>
+          <label class="field smart-loss-field"><span>Hard local loss cap</span><input name="smart_loss_hard_cap" type="number" min="0.01" step="0.01" value="2.50" required><small>Immediate local sell at approximately -$this amount. Must be below stake; execution can slip.</small></label>
+          <label class="field smart-loss-field"><span>Recovery grace ticks</span><input name="smart_loss_grace_ticks" type="number" min="0" max="10000" step="1" value="8" required><small>Minimum ticks to wait after the soft trigger before adverse/opposite-signal exits are allowed.</small></label>
+          <label class="field smart-loss-field"><span>Maximum watch ticks</span><input name="smart_loss_max_watch_ticks" type="number" min="0" max="100000" step="1" value="30" required><small>If still below the soft trigger after this many ticks, close. 0 disables the timeout.</small></label>
+          <label class="field smart-loss-field"><span>Adverse ticks required</span><input name="smart_loss_adverse_ticks" type="number" min="1" max="50" step="1" value="4" required></label>
+          <label class="field smart-loss-field"><span>Adverse tick window</span><input name="smart_loss_adverse_window" type="number" min="1" max="100" step="1" value="6" required></label>
+          <label class="field checkbox smart-loss-field"><input name="smart_loss_opposite_signal" type="checkbox" checked><span>Exit on opposite strategy signal</span><small>Only after the recovery grace period while loss watch is active.</small></label>
+          <label class="field smart-loss-field"><span>Recovered-trade rescue profit</span><input name="smart_loss_rescue_profit" type="number" min="0" step="0.01" value="0.02" required><small>After loss watch was triggered, close when the trade recovers to +$this amount. 0 disables and lets the normal profit exit take over.</small></label>
+          <div class="notice warning smart-loss-field"><strong>Disconnect protection:</strong> Smart Loss is local logic and cannot react while your PC is offline. Use the Emergency server loss cap above if you want a Deriv-side backstop during disconnects.</div>
+
+          <label class="field live-only hidden" id="liveConfirmationField"><span>Real-money confirmation</span><input name="live_confirmation" autocomplete="off" placeholder="Type LIVE"><small>This confirmation is never saved.</small></label>
+        </div>
+
+        <div class="preview-strip">
+          <div><span>Stake per split</span><strong id="stakePreview">—</strong></div>
+          <div><span>Maximum allocated at once</span><strong id="exposurePreview">—</strong></div>
+          <div><span>Current config multiplier</span><strong id="configMultiplierPreview">—</strong></div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" id="sessionStartButton" class="button primary large">Start with these settings</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="tab-strategy" class="panel tab-panel">
+      <div class="section-heading">
+        <div><div class="eyebrow mobile-config-eyebrow">BOT CONFIGURATION</div><h2>Strategy configuration</h2><p>Each strategy keeps an isolated configuration. Multi-strategy sessions can combine these engines without mixing their parameters.</p></div>
+        <button id="saveConfigButton" class="button primary">Save selected strategy config</button>
+      </div>
+      <div class="strategy-selector-bar card">
+        <label class="field"><span>Strategy to configure</span><select id="configStrategySelect"></select></label>
+        <label class="field"><span>Load configuration</span><select id="configStrategyProfileSelect"><option value="balanced">Balanced</option><option value="fast">Fast</option><option value="strict">Strict</option></select></label>
+        <button type="button" id="applyStrategyProfileButton" class="button secondary">Load into selected strategy</button>
+        <div id="strategyConfigDescription" class="strategy-description">Choose a strategy to view its isolated controls.</div>
+      </div>
+      <form id="configForm">
+        <article class="card inset general-config-card">
+          <h3>General bot defaults</h3>
+          <div class="form-grid narrow">
+            <label class="field"><span>Default multiplier</span><select data-config="multiplier"><option value="750">×750</option><option value="2000">×2000</option><option value="3500">×3500</option><option value="5500">×5500</option><option value="7500">×7500</option></select></label>
+            <label class="field"><span>Default take profit</span><input data-config="take_profit" type="number" min="0.01" step="0.01"></label>
+            <label class="field"><span>Dashboard refresh seconds</span><input data-config="dashboard_seconds" type="number" min="1" step="1"></label>
+          </div>
+        </article>
+        <div class="strategy-panels"><article class="card inset strategy-config-panel hidden" data-strategy-panel="ema_rsi">
+            <div class="strategy-panel-heading"><div><div class="eyebrow">EXCLUSIVE ENGINE</div><h3>EMA + RSI Momentum</h3><p>Trend, RSI range, and directional tick momentum.</p></div><span class="badge neutral">ema_rsi</span></div>
+            <div class="form-grid"><label class="field"><span>EMA fast</span><input data-config="strategies.ema_rsi.ema_fast" type="number" min="1" step="1"></label><label class="field"><span>EMA slow</span><input data-config="strategies.ema_rsi.ema_slow" type="number" min="1" step="1"></label><label class="field"><span>RSI period</span><input data-config="strategies.ema_rsi.rsi_period" type="number" min="1" step="1"></label><label class="field"><span>Up RSI minimum</span><input data-config="strategies.ema_rsi.up_rsi_min" type="number" min="0" step="0.1"></label><label class="field"><span>Up RSI maximum</span><input data-config="strategies.ema_rsi.up_rsi_max" type="number" min="0" step="0.1"></label><label class="field"><span>Down RSI minimum</span><input data-config="strategies.ema_rsi.down_rsi_min" type="number" min="0" step="0.1"></label><label class="field"><span>Down RSI maximum</span><input data-config="strategies.ema_rsi.down_rsi_max" type="number" min="0" step="0.1"></label><label class="field"><span>Momentum ticks</span><input data-config="strategies.ema_rsi.momentum_ticks" type="number" min="1" step="1"></label><label class="field"><span>Momentum required</span><input data-config="strategies.ema_rsi.momentum_required" type="number" min="1" step="1"></label><label class="field"><span>Confirmations</span><input data-config="strategies.ema_rsi.confirmations" type="number" min="1" step="1"></label><label class="field"><span>Cooldown ticks</span><input data-config="strategies.ema_rsi.cooldown_ticks" type="number" min="0" step="1"></label><label class="field"><span>History count</span><input data-config="strategies.ema_rsi.history_count" type="number" min="1" step="1"></label></div>
+          </article><article class="card inset strategy-config-panel hidden" data-strategy-panel="hammer">
+            <div class="strategy-panel-heading"><div><div class="eyebrow">CANDLESTICK STUDIO PRO · V2.18</div><h3>Candlestick Pattern Engine Pro</h3><p>1-minute chart-aligned candles, selectable pattern families/sub-types, live wick/body percentages, and configurable geometry.</p></div><span class="badge neutral">44 selectable sub-types</span></div>
+            <div class="candle-studio-grid"><div class="candle-preview-card"><div class="candle-glyph"><span class="wick"></span><span class="body"></span></div><div><div class="eyebrow">1M LIVE CANDLE MODEL</div><p>The detector measures the body, upper wick and lower wick as percentages of the full candle range. Screenshot-style flat-bottom upper-wick rejections are included.</p></div></div><div class="pattern-quick-actions"><div class="eyebrow">QUICK SELECT</div><button type="button" class="button secondary small pattern-set-btn" data-pattern-set="screenshot">Screenshot wick types</button><button type="button" class="button secondary small pattern-set-btn" data-pattern-set="hammer_family">All hammer/wick</button><button type="button" class="button secondary small pattern-set-btn" data-pattern-set="doji">All doji</button><button type="button" class="button secondary small pattern-set-btn" data-pattern-set="engulfing">Body reversals</button><button type="button" class="button secondary small pattern-set-btn" data-pattern-set="stars">Stars</button><button type="button" class="button secondary small pattern-set-btn" data-pattern-set="multi">Momentum</button><button type="button" class="button secondary small pattern-set-btn" data-pattern-set="bullish">Bullish only</button><button type="button" class="button secondary small pattern-set-btn" data-pattern-set="bearish">Bearish only</button><button type="button" class="button secondary small pattern-set-btn" data-pattern-set="all">All 44</button><button type="button" class="button secondary small pattern-set-btn" data-pattern-set="none">Clear</button></div></div>
+            <div class="candle-control-deck">
+              <div class="candle-control-card"><div class="eyebrow">CHART & CONFIRMATION</div><div class="form-grid compact-grid"><label class="field"><span>Candle construction</span><select data-config-string="strategies.hammer.candle_mode"><option value="time">Chart time (recommended)</option><option value="ticks">Tick count (legacy)</option></select></label><label class="field"><span>Chart timeframe</span><select data-config="strategies.hammer.candle_seconds"><option value="15">15 seconds</option><option value="30">30 seconds</option><option value="60">1 minute</option><option value="120">2 minutes</option><option value="300">5 minutes</option></select><small>60 seconds matches your 1m chart.</small></label><label class="field"><span>Ticks/candle legacy</span><input data-config="strategies.hammer.candle_ticks" type="number" min="3" step="1"></label><label class="field"><span>Confirmation</span><select data-config-string="strategies.hammer.confirmation_mode"><option value="breakout">Wait for candle high/low breakout</option><option value="close">Trade at candle close</option></select></label><label class="field"><span>Conflict handling</span><select data-config-string="strategies.hammer.pattern_conflict_policy"><option value="block">Block bullish/bearish conflict</option><option value="highest_score">Use strongest pattern</option></select></label><label class="field"><span>Minimum pattern score</span><input data-config="strategies.hammer.min_pattern_score" type="number" min="0" max="1" step="0.05"></label></div></div>
+              <div class="candle-control-card percentage-card"><div class="eyebrow">WICK & BODY GEOMETRY (%)</div><div class="shape-preset-row"><button type="button" class="button secondary small candle-shape-preset" data-shape-preset="loose">Loose</button><button type="button" class="button secondary small candle-shape-preset" data-shape-preset="balanced">Balanced</button><button type="button" class="button secondary small candle-shape-preset" data-shape-preset="strict">Strict</button></div><div class="form-grid compact-grid"><label class="field"><span>Shape measurement</span><select data-config-string="strategies.hammer.shape_mode"><option value="percent">Percent of candle (recommended)</option><option value="ratio">Legacy wick/body ratio</option></select></label><label class="field"><span>Body minimum %</span><input data-config="strategies.hammer.min_body_pct" type="number" min="0" max="100" step="1"><small>Classic hammer family.</small></label><label class="field"><span>Body maximum %</span><input data-config="strategies.hammer.max_body_pct" type="number" min="0" max="100" step="1"></label><label class="field"><span>Long wick minimum %</span><input data-config="strategies.hammer.min_long_wick_pct" type="number" min="0" max="100" step="1"></label><label class="field"><span>Opposite wick maximum %</span><input data-config="strategies.hammer.max_opposite_wick_pct" type="number" min="0" max="100" step="1"></label><label class="field"><span>Body edge zone %</span><input data-config="strategies.hammer.body_edge_zone_pct" type="number" min="5" max="80" step="1"><small>How close the body must sit to the candle end.</small></label><label class="field"><span>Flat wick maximum %</span><input data-config="strategies.hammer.flat_wick_max_pct" type="number" min="0" max="30" step="1"><small>Used for Open=Low / Close=Low screenshot variants.</small></label><label class="field"><span>Rejection body min %</span><input data-config="strategies.hammer.rejection_min_body_pct" type="number" min="0" max="100" step="1"></label><label class="field"><span>Rejection body max %</span><input data-config="strategies.hammer.rejection_max_body_pct" type="number" min="0" max="100" step="1"></label><label class="field"><span>Rejection wick min %</span><input data-config="strategies.hammer.rejection_min_wick_pct" type="number" min="0" max="100" step="1"><small>Lets larger-body upper/lower rejection candles qualify.</small></label><label class="field"><span>Rejection opposite wick max %</span><input data-config="strategies.hammer.rejection_max_opposite_wick_pct" type="number" min="0" max="40" step="1"></label><label class="field"><span>Doji body maximum %</span><input data-config="strategies.hammer.doji_body_pct" type="number" min="0.1" max="35" step="0.5"></label><label class="field"><span>Marubozu body minimum %</span><input data-config="strategies.hammer.marubozu_body_pct" type="number" min="40" max="99" step="1"></label></div><details class="legacy-shape-details"><summary>Legacy wick/body ratio controls</summary><div class="form-grid compact-grid"><label class="field"><span>Long wick/body ratio</span><input data-config="strategies.hammer.min_long_wick_body_ratio" type="number" min="0.1" step="0.05"></label><label class="field"><span>Max opposite wick/body</span><input data-config="strategies.hammer.max_opposite_wick_body_ratio" type="number" min="0" step="0.05"></label><label class="field"><span>Legacy min body/range</span><input data-config="strategies.hammer.min_body_range_ratio" type="number" min="0" step="0.01"></label><label class="field"><span>Legacy max body/range</span><input data-config="strategies.hammer.max_body_range_ratio" type="number" min="0" step="0.01"></label></div></details></div>
+              <div class="candle-control-card"><div class="eyebrow">MARKET CONTEXT</div><div class="form-grid compact-grid"><label class="field"><span>Context filter</span><select data-config-string="strategies.hammer.context_mode"><option value="off">Off — shape only</option><option value="trend">Trend context</option><option value="strict">Strict trend context</option></select></label><label class="field"><span>Context candles</span><input data-config="strategies.hammer.context_candles" type="number" min="1" step="1"></label><label class="field"><span>Context agreement %</span><input data-config="strategies.hammer.context_agreement_pct" type="number" min="0" max="100" step="5"><small>% of context candles that should agree with the prior move.</small></label><label class="field"><span>Breakout expiry ticks</span><input data-config="strategies.hammer.breakout_expiry_ticks" type="number" min="1" step="1"></label><label class="field"><span>Cooldown ticks</span><input data-config="strategies.hammer.cooldown_ticks" type="number" min="0" step="1"></label><label class="field"><span>History count</span><input data-config="strategies.hammer.history_count" type="number" min="1" step="1"></label></div></div>
+            </div>
+            <div class="pattern-toolbar"><div><div class="eyebrow">SELECTABLE CANDLE SUB-TYPES</div><strong id="patternSelectedCount">0 / 44 selected</strong></div><label class="pattern-search"><span>Filter patterns</span><input id="patternSearchInput" type="search" placeholder="hammer, doji, rejection..."></label></div>
+            <div class="pattern-family-stack"><section class="pattern-family"><div class="pattern-family-head"><h4>Hammer & Wick Rejection</h4><span class="pattern-family-count">20 sub-types</span></div><div class="pattern-picker"><label data-pattern-search="hammer (either body) hammer"><input class="hammer-pattern-toggle" value="hammer" type="checkbox"><span><strong>Hammer (Either Body)</strong><small>Classic lower-wick bullish reversal</small></span></label><label data-pattern-search="bullish hammer bullish hammer"><input class="hammer-pattern-toggle" value="bullish_hammer" type="checkbox"><span><strong>Bullish Hammer</strong><small>Green-body hammer</small></span></label><label data-pattern-search="bearish hammer bearish hammer"><input class="hammer-pattern-toggle" value="bearish_hammer" type="checkbox"><span><strong>Bearish Hammer</strong><small>Red-body hammer</small></span></label><label data-pattern-search="inverted hammer inverted hammer"><input class="hammer-pattern-toggle" value="inverted_hammer" type="checkbox"><span><strong>Inverted Hammer</strong><small>Classic upper-wick bullish reversal</small></span></label><label data-pattern-search="bullish inverted hammer bullish inverted hammer"><input class="hammer-pattern-toggle" value="bullish_inverted_hammer" type="checkbox"><span><strong>Bullish Inverted Hammer</strong><small>Green upper-wick reversal</small></span></label><label data-pattern-search="bearish inverted hammer bearish inverted hammer"><input class="hammer-pattern-toggle" value="bearish_inverted_hammer" type="checkbox"><span><strong>Bearish Inverted Hammer</strong><small>Red upper-wick reversal</small></span></label><label data-pattern-search="hanging man hanging man"><input class="hammer-pattern-toggle" value="hanging_man" type="checkbox"><span><strong>Hanging Man</strong><small>Lower-wick bearish reversal</small></span></label><label data-pattern-search="bullish hanging man bullish hanging man"><input class="hammer-pattern-toggle" value="bullish_hanging_man" type="checkbox"><span><strong>Bullish Hanging Man</strong><small>Green hanging-man subtype</small></span></label><label data-pattern-search="bearish hanging man bearish hanging man"><input class="hammer-pattern-toggle" value="bearish_hanging_man" type="checkbox"><span><strong>Bearish Hanging Man</strong><small>Red hanging-man subtype</small></span></label><label data-pattern-search="shooting star shooting star"><input class="hammer-pattern-toggle" value="shooting_star" type="checkbox"><span><strong>Shooting Star</strong><small>Upper-wick bearish reversal</small></span></label><label data-pattern-search="bullish shooting star bullish shooting star"><input class="hammer-pattern-toggle" value="bullish_shooting_star" type="checkbox"><span><strong>Bullish Shooting Star</strong><small>Green shooting-star subtype</small></span></label><label data-pattern-search="bearish shooting star bearish shooting star"><input class="hammer-pattern-toggle" value="bearish_shooting_star" type="checkbox"><span><strong>Bearish Shooting Star</strong><small>Red shooting-star subtype</small></span></label><label data-pattern-search="bullish upper-wick rejection bullish upper wick rejection"><input class="hammer-pattern-toggle" value="bullish_upper_wick_rejection" type="checkbox"><span><strong>Bullish Upper-Wick Rejection</strong><small>Wide-body upper wick; includes your green example</small></span></label><label data-pattern-search="bearish upper-wick rejection bearish upper wick rejection"><input class="hammer-pattern-toggle" value="bearish_upper_wick_rejection" type="checkbox"><span><strong>Bearish Upper-Wick Rejection</strong><small>Wide-body upper wick; includes your red example</small></span></label><label data-pattern-search="bullish lower-wick rejection bullish lower wick rejection"><input class="hammer-pattern-toggle" value="bullish_lower_wick_rejection" type="checkbox"><span><strong>Bullish Lower-Wick Rejection</strong><small>Wide-body lower wick</small></span></label><label data-pattern-search="bearish lower-wick rejection bearish lower wick rejection"><input class="hammer-pattern-toggle" value="bearish_lower_wick_rejection" type="checkbox"><span><strong>Bearish Lower-Wick Rejection</strong><small>Bearish lower-wick rejection</small></span></label><label data-pattern-search="flat-bottom bullish rejection flat bottom bullish rejection"><input class="hammer-pattern-toggle" value="flat_bottom_bullish_rejection" type="checkbox"><span><strong>Flat-Bottom Bullish Rejection</strong><small>Open near low + upper wick; screenshot-style</small></span></label><label data-pattern-search="flat-bottom bearish rejection flat bottom bearish rejection"><input class="hammer-pattern-toggle" value="flat_bottom_bearish_rejection" type="checkbox"><span><strong>Flat-Bottom Bearish Rejection</strong><small>Close near low + upper wick; screenshot-style</small></span></label><label data-pattern-search="bullish belt hold bullish belt hold"><input class="hammer-pattern-toggle" value="bullish_belt_hold" type="checkbox"><span><strong>Bullish Belt Hold</strong><small>Strong bullish body opens near low</small></span></label><label data-pattern-search="bearish belt hold bearish belt hold"><input class="hammer-pattern-toggle" value="bearish_belt_hold" type="checkbox"><span><strong>Bearish Belt Hold</strong><small>Strong bearish body opens near high</small></span></label></div></section><section class="pattern-family"><div class="pattern-family-head"><h4>Doji & Indecision</h4><span class="pattern-family-count">8 sub-types</span></div><div class="pattern-picker"><label data-pattern-search="standard doji standard doji"><input class="hammer-pattern-toggle" value="standard_doji" type="checkbox"><span><strong>Standard Doji</strong><small>Tiny body after directional context</small></span></label><label data-pattern-search="dragonfly doji dragonfly doji"><input class="hammer-pattern-toggle" value="dragonfly_doji" type="checkbox"><span><strong>Dragonfly Doji</strong><small>Long lower wick, tiny body</small></span></label><label data-pattern-search="gravestone doji gravestone doji"><input class="hammer-pattern-toggle" value="gravestone_doji" type="checkbox"><span><strong>Gravestone Doji</strong><small>Long upper wick, tiny body</small></span></label><label data-pattern-search="long-legged doji long legged doji"><input class="hammer-pattern-toggle" value="long_legged_doji" type="checkbox"><span><strong>Long-Legged Doji</strong><small>Long wicks on both sides</small></span></label><label data-pattern-search="rickshaw man doji rickshaw man"><input class="hammer-pattern-toggle" value="rickshaw_man" type="checkbox"><span><strong>Rickshaw Man Doji</strong><small>Centered doji with long wicks</small></span></label><label data-pattern-search="four-price doji four price doji"><input class="hammer-pattern-toggle" value="four_price_doji" type="checkbox"><span><strong>Four-Price Doji</strong><small>Open = high = low = close</small></span></label><label data-pattern-search="spinning top spinning top"><input class="hammer-pattern-toggle" value="spinning_top" type="checkbox"><span><strong>Spinning Top</strong><small>Small body with two-sided wicks</small></span></label><label data-pattern-search="high-wave candle high wave"><input class="hammer-pattern-toggle" value="high_wave" type="checkbox"><span><strong>High-Wave Candle</strong><small>Very small body with large two-sided wicks</small></span></label></div></section><section class="pattern-family"><div class="pattern-family-head"><h4>Body Reversals</h4><span class="pattern-family-count">8 sub-types</span></div><div class="pattern-picker"><label data-pattern-search="bullish engulfing bullish engulfing"><input class="hammer-pattern-toggle" value="bullish_engulfing" type="checkbox"><span><strong>Bullish Engulfing</strong><small>Bullish body engulfs prior bearish body</small></span></label><label data-pattern-search="bearish engulfing bearish engulfing"><input class="hammer-pattern-toggle" value="bearish_engulfing" type="checkbox"><span><strong>Bearish Engulfing</strong><small>Bearish body engulfs prior bullish body</small></span></label><label data-pattern-search="bullish harami bullish harami"><input class="hammer-pattern-toggle" value="bullish_harami" type="checkbox"><span><strong>Bullish Harami</strong><small>Bullish inside-body reversal</small></span></label><label data-pattern-search="bearish harami bearish harami"><input class="hammer-pattern-toggle" value="bearish_harami" type="checkbox"><span><strong>Bearish Harami</strong><small>Bearish inside-body reversal</small></span></label><label data-pattern-search="piercing line piercing line"><input class="hammer-pattern-toggle" value="piercing_line" type="checkbox"><span><strong>Piercing Line</strong><small>Bullish penetration into prior body</small></span></label><label data-pattern-search="dark cloud cover dark cloud cover"><input class="hammer-pattern-toggle" value="dark_cloud_cover" type="checkbox"><span><strong>Dark Cloud Cover</strong><small>Bearish penetration into prior body</small></span></label><label data-pattern-search="tweezer bottom tweezer bottom"><input class="hammer-pattern-toggle" value="tweezer_bottom" type="checkbox"><span><strong>Tweezer Bottom</strong><small>Matched-low bullish reversal</small></span></label><label data-pattern-search="tweezer top tweezer top"><input class="hammer-pattern-toggle" value="tweezer_top" type="checkbox"><span><strong>Tweezer Top</strong><small>Matched-high bearish reversal</small></span></label></div></section><section class="pattern-family"><div class="pattern-family-head"><h4>Star Patterns</h4><span class="pattern-family-count">4 sub-types</span></div><div class="pattern-picker"><label data-pattern-search="morning star morning star"><input class="hammer-pattern-toggle" value="morning_star" type="checkbox"><span><strong>Morning Star</strong><small>Three-candle bullish reversal</small></span></label><label data-pattern-search="evening star evening star"><input class="hammer-pattern-toggle" value="evening_star" type="checkbox"><span><strong>Evening Star</strong><small>Three-candle bearish reversal</small></span></label><label data-pattern-search="morning doji star morning doji star"><input class="hammer-pattern-toggle" value="morning_doji_star" type="checkbox"><span><strong>Morning Doji Star</strong><small>Morning Star with doji center</small></span></label><label data-pattern-search="evening doji star evening doji star"><input class="hammer-pattern-toggle" value="evening_doji_star" type="checkbox"><span><strong>Evening Doji Star</strong><small>Evening Star with doji center</small></span></label></div></section><section class="pattern-family"><div class="pattern-family-head"><h4>Momentum & Continuation</h4><span class="pattern-family-count">4 sub-types</span></div><div class="pattern-picker"><label data-pattern-search="bullish marubozu bullish marubozu"><input class="hammer-pattern-toggle" value="bullish_marubozu" type="checkbox"><span><strong>Bullish Marubozu</strong><small>Large bullish body with tiny wicks</small></span></label><label data-pattern-search="bearish marubozu bearish marubozu"><input class="hammer-pattern-toggle" value="bearish_marubozu" type="checkbox"><span><strong>Bearish Marubozu</strong><small>Large bearish body with tiny wicks</small></span></label><label data-pattern-search="three white soldiers three white soldiers"><input class="hammer-pattern-toggle" value="three_white_soldiers" type="checkbox"><span><strong>Three White Soldiers</strong><small>Three-candle bullish momentum</small></span></label><label data-pattern-search="three black crows three black crows"><input class="hammer-pattern-toggle" value="three_black_crows" type="checkbox"><span><strong>Three Black Crows</strong><small>Three-candle bearish momentum</small></span></label></div></section></div>
+          </article><article class="card inset strategy-config-panel hidden" data-strategy-panel="macd">
+            <div class="strategy-panel-heading"><div><div class="eyebrow">EXCLUSIVE ENGINE</div><h3>MACD Trend Crossover</h3><p>MACD line momentum compared with its signal line.</p></div><span class="badge neutral">macd</span></div>
+            <div class="form-grid"><label class="field"><span>Fast EMA period</span><input data-config="strategies.macd.fast_period" type="number" min="1" step="1"></label><label class="field"><span>Slow EMA period</span><input data-config="strategies.macd.slow_period" type="number" min="1" step="1"></label><label class="field"><span>Signal EMA period</span><input data-config="strategies.macd.signal_period" type="number" min="1" step="1"></label><label class="field"><span>Histogram threshold</span><input data-config="strategies.macd.histogram_threshold" type="number" min="0" step="0.001"></label><label class="field"><span>Confirmations</span><input data-config="strategies.macd.confirmations" type="number" min="1" step="1"></label><label class="field"><span>Cooldown ticks</span><input data-config="strategies.macd.cooldown_ticks" type="number" min="0" step="1"></label><label class="field"><span>History count</span><input data-config="strategies.macd.history_count" type="number" min="1" step="1"></label></div>
+          </article><article class="card inset strategy-config-panel hidden" data-strategy-panel="bollinger_reversion">
+            <div class="strategy-panel-heading"><div><div class="eyebrow">EXCLUSIVE ENGINE</div><h3>Bollinger Mean Reversion</h3><p>Trades stretched prices back toward the statistical mean.</p></div><span class="badge neutral">bollinger_reversion</span></div>
+            <div class="form-grid"><label class="field"><span>Band period</span><input data-config="strategies.bollinger_reversion.period" type="number" min="1" step="1"></label><label class="field"><span>Standard deviation multiplier</span><input data-config="strategies.bollinger_reversion.stddev_multiplier" type="number" min="1" step="0.1"></label><label class="field"><span>RSI period</span><input data-config="strategies.bollinger_reversion.rsi_period" type="number" min="1" step="1"></label><label class="field"><span>Oversold level</span><input data-config="strategies.bollinger_reversion.oversold" type="number" min="0" step="0.1"></label><label class="field"><span>Overbought level</span><input data-config="strategies.bollinger_reversion.overbought" type="number" min="0" step="0.1"></label><label class="field"><span>Confirmations</span><input data-config="strategies.bollinger_reversion.confirmations" type="number" min="1" step="1"></label><label class="field"><span>Cooldown ticks</span><input data-config="strategies.bollinger_reversion.cooldown_ticks" type="number" min="0" step="1"></label><label class="field"><span>History count</span><input data-config="strategies.bollinger_reversion.history_count" type="number" min="1" step="1"></label></div>
+          </article><article class="card inset strategy-config-panel hidden" data-strategy-panel="bollinger_breakout">
+            <div class="strategy-panel-heading"><div><div class="eyebrow">EXCLUSIVE ENGINE</div><h3>Bollinger Breakout</h3><p>Follows momentum outside a prior Bollinger channel.</p></div><span class="badge neutral">bollinger_breakout</span></div>
+            <div class="form-grid"><label class="field"><span>Band period</span><input data-config="strategies.bollinger_breakout.period" type="number" min="1" step="1"></label><label class="field"><span>Standard deviation multiplier</span><input data-config="strategies.bollinger_breakout.stddev_multiplier" type="number" min="1" step="0.1"></label><label class="field"><span>Momentum ticks</span><input data-config="strategies.bollinger_breakout.momentum_ticks" type="number" min="1" step="1"></label><label class="field"><span>Momentum required</span><input data-config="strategies.bollinger_breakout.momentum_required" type="number" min="1" step="1"></label><label class="field"><span>Confirmations</span><input data-config="strategies.bollinger_breakout.confirmations" type="number" min="1" step="1"></label><label class="field"><span>Cooldown ticks</span><input data-config="strategies.bollinger_breakout.cooldown_ticks" type="number" min="0" step="1"></label><label class="field"><span>History count</span><input data-config="strategies.bollinger_breakout.history_count" type="number" min="1" step="1"></label></div>
+          </article><article class="card inset strategy-config-panel hidden" data-strategy-panel="stochastic">
+            <div class="strategy-panel-heading"><div><div class="eyebrow">EXCLUSIVE ENGINE</div><h3>Stochastic Reversal</h3><p>Looks for momentum reversals around overbought and oversold zones.</p></div><span class="badge neutral">stochastic</span></div>
+            <div class="form-grid"><label class="field"><span>Lookback period</span><input data-config="strategies.stochastic.lookback_period" type="number" min="1" step="1"></label><label class="field"><span>Smooth %K</span><input data-config="strategies.stochastic.smooth_k" type="number" min="1" step="1"></label><label class="field"><span>Smooth %D</span><input data-config="strategies.stochastic.smooth_d" type="number" min="1" step="1"></label><label class="field"><span>Oversold level</span><input data-config="strategies.stochastic.oversold" type="number" min="0" step="0.1"></label><label class="field"><span>Overbought level</span><input data-config="strategies.stochastic.overbought" type="number" min="0" step="0.1"></label><label class="field"><span>Confirmations</span><input data-config="strategies.stochastic.confirmations" type="number" min="1" step="1"></label><label class="field"><span>Cooldown ticks</span><input data-config="strategies.stochastic.cooldown_ticks" type="number" min="0" step="1"></label><label class="field"><span>History count</span><input data-config="strategies.stochastic.history_count" type="number" min="1" step="1"></label></div>
+          </article><article class="card inset strategy-config-panel hidden" data-strategy-panel="donchian">
+            <div class="strategy-panel-heading"><div><div class="eyebrow">EXCLUSIVE ENGINE</div><h3>Donchian Breakout</h3><p>Trades a new high or low outside a prior price channel.</p></div><span class="badge neutral">donchian</span></div>
+            <div class="form-grid"><label class="field"><span>Channel period</span><input data-config="strategies.donchian.period" type="number" min="1" step="1"></label><label class="field"><span>Breakout buffer</span><input data-config="strategies.donchian.breakout_buffer" type="number" min="0" step="0.01"></label><label class="field"><span>Confirmations</span><input data-config="strategies.donchian.confirmations" type="number" min="1" step="1"></label><label class="field"><span>Cooldown ticks</span><input data-config="strategies.donchian.cooldown_ticks" type="number" min="0" step="1"></label><label class="field"><span>History count</span><input data-config="strategies.donchian.history_count" type="number" min="1" step="1"></label></div>
+          </article><article class="card inset strategy-config-panel hidden" data-strategy-panel="rsi_pullback">
+            <div class="strategy-panel-heading"><div><div class="eyebrow">EXCLUSIVE ENGINE</div><h3>RSI Trend Pullback</h3><p>Joins a longer EMA trend after a shorter pullback.</p></div><span class="badge neutral">rsi_pullback</span></div>
+            <div class="form-grid"><label class="field"><span>Trend EMA</span><input data-config="strategies.rsi_pullback.trend_ema" type="number" min="1" step="1"></label><label class="field"><span>Pullback EMA</span><input data-config="strategies.rsi_pullback.pullback_ema" type="number" min="1" step="1"></label><label class="field"><span>RSI period</span><input data-config="strategies.rsi_pullback.rsi_period" type="number" min="1" step="1"></label><label class="field"><span>Up RSI minimum</span><input data-config="strategies.rsi_pullback.up_rsi_min" type="number" min="0" step="0.1"></label><label class="field"><span>Up RSI maximum</span><input data-config="strategies.rsi_pullback.up_rsi_max" type="number" min="0" step="0.1"></label><label class="field"><span>Down RSI minimum</span><input data-config="strategies.rsi_pullback.down_rsi_min" type="number" min="0" step="0.1"></label><label class="field"><span>Down RSI maximum</span><input data-config="strategies.rsi_pullback.down_rsi_max" type="number" min="0" step="0.1"></label><label class="field"><span>Confirmations</span><input data-config="strategies.rsi_pullback.confirmations" type="number" min="1" step="1"></label><label class="field"><span>Cooldown ticks</span><input data-config="strategies.rsi_pullback.cooldown_ticks" type="number" min="0" step="1"></label><label class="field"><span>History count</span><input data-config="strategies.rsi_pullback.history_count" type="number" min="1" step="1"></label></div>
+          </article><article class="card inset strategy-config-panel hidden" data-strategy-panel="tick_momentum">
+            <div class="strategy-panel-heading"><div><div class="eyebrow">EXCLUSIVE ENGINE</div><h3>Tick Momentum Burst</h3><p>Fast burst strategy using only the latest directional ticks.</p></div><span class="badge neutral">tick_momentum</span></div>
+            <div class="form-grid"><label class="field"><span>Lookback ticks</span><input data-config="strategies.tick_momentum.lookback_ticks" type="number" min="1" step="1"></label><label class="field"><span>Required directional ticks</span><input data-config="strategies.tick_momentum.required_directional_ticks" type="number" min="1" step="1"></label><label class="field"><span>Minimum net change</span><input data-config="strategies.tick_momentum.min_net_change" type="number" min="0" step="0.01"></label><label class="field"><span>Confirmations</span><input data-config="strategies.tick_momentum.confirmations" type="number" min="1" step="1"></label><label class="field"><span>Cooldown ticks</span><input data-config="strategies.tick_momentum.cooldown_ticks" type="number" min="0" step="1"></label><label class="field"><span>History count</span><input data-config="strategies.tick_momentum.history_count" type="number" min="1" step="1"></label></div>
+          </article></div>
+      </form>
+      <div class="notice warning"><strong>Isolation rule:</strong> selecting Candlestick Patterns uses only its own candle/pattern settings; selecting MACD uses only MACD settings, and so on. Other saved panels remain untouched until you select them.</div>
+    </section>
+
+
+    <section id="tab-rf-lab" class="panel tab-panel rf-lab-panel">
+      <div class="section-heading">
+        <div><div class="eyebrow">RISE/FALL RESEARCH WORKSPACE · DEMO ONLY</div><h2>Rise/Fall Configuration Lab</h2><p>Run isolated CALL/PUT configurations side-by-side on the same market window, then compare proposal break-even, actual win rate, profit factor, drawdown and confidence/edge calibration.</p></div>
+        <div class="lab-top-actions"><span id="rfLabRunBadge" class="badge neutral">Lab idle</span><button id="rfLabStopAll" class="button danger" type="button" disabled>Stop all entries</button><button id="rfLabStartAll" class="button primary" type="button">Run comparison</button></div>
+      </div>
+      <div class="notice lab-notice"><strong>Separate engine:</strong> this lab launches only <b>Rise/Fall CALL/PUT</b> testers. It never reads or writes Multiplier Strategy Lab trades/configuration. The main Rise/Fall engine must be stopped while this lab runs. <strong>Research default:</strong> fixed stake, compounding off, one open trade and one trade per signal.</div>
+
+      <div class="rf-lab-insights">
+        <article><span>Top screened candidate</span><strong id="rfLabTopCandidate">Need data</strong><small id="rfLabTopMessage">30+ trades per tester for screening</small></article>
+        <article><span>Active testers</span><strong id="rfLabActive">0 / 0</strong><small>Maximum 4 parallel testers</small></article>
+        <article><span>Combined P/L</span><strong id="rfLabCombined">0.00</strong><small>Descriptive only</small></article>
+        <article><span>Validation target</span><strong>100+</strong><small>closed trades per configuration</small></article>
+      </div>
+
+      <article class="card rf-lab-tools">
+        <div class="card-header"><div><h3>Experiment builder</h3><p>Add configs manually, load a saved Rise/Fall preset, or generate a controlled duration/mode matrix.</p></div><span class="micro-badge neutral">Demo only</span></div>
+        <div class="rf-lab-toolbar">
+          <button id="rfLabAddTester" class="button secondary" type="button">+ Add tester</button>
+          <button id="rfLabMatrixCore" class="button secondary" type="button">2T tuning matrix</button>
+          <button id="rfLabMatrixMode" class="button secondary" type="button">2T mode comparison</button>
+          <select id="rfLabPresetSelect"><option value="">Saved Rise/Fall preset…</option></select>
+          <button id="rfLabAddPreset" class="button secondary" type="button">Add preset to lab</button>
+        </div>
+        <div class="rf-auto-lab-box">
+          <div class="card-header"><div><div class="eyebrow">AUTONOMOUS 2T OPTIMIZER</div><h3>Auto Lab · Explore → Refine → Validate</h3><p>Runs up to four DEMO testers at a time, stops each candidate at its trade target, ranks the results with sample-size penalties, then creates the next round around the stronger settings. Generated candidates are hard-locked to 2 ticks.</p></div><span class="micro-badge neutral">2T only</span></div>
+          <div class="form-grid compact rf-auto-grid">
+            <label class="field"><span>Stake / trade</span><input id="rfAutoStake" class="rf-auto-input" type="number" min="0.35" step="0.01" value="1.00"></label>
+            <label class="field"><span>Auto rounds</span><input id="rfAutoRounds" class="rf-auto-input" type="number" min="3" max="8" step="1" value="4"></label>
+            <label class="field"><span>Explore trades / config</span><input id="rfAutoScreenTrades" class="rf-auto-input" type="number" min="30" max="300" step="1" value="30"></label>
+            <label class="field"><span>Refine trades / config</span><input id="rfAutoRefineTrades" class="rf-auto-input" type="number" min="30" max="500" step="1" value="50"></label>
+            <label class="field"><span>Validation trades / config</span><input id="rfAutoValidationTrades" class="rf-auto-input" type="number" min="50" max="1000" step="1" value="100"></label>
+            <label class="field"><span>Max minutes / round</span><input id="rfAutoMaxMinutes" class="rf-auto-input" type="number" min="5" max="240" step="1" value="30"></label>
+          </div>
+          <div class="rf-auto-status"><span><small>Stage</small><strong id="rfAutoStage">IDLE</strong></span><span><small>Round</small><strong id="rfAutoRound">0 / 0</strong></span><span><small>Current target</small><strong id="rfAutoTarget">—</strong></span><span class="rf-auto-message"><small>Status</small><strong id="rfAutoMessage">Auto Lab locks generated research to 2 ticks.</strong></span></div>
+          <div class="rf-auto-actions"><button id="rfAutoStart" class="button primary" type="button">Start 2T Auto Lab</button><button id="rfAutoStop" class="button danger" type="button" disabled>Stop Auto Lab</button><button id="rfAutoBestPreset" class="button secondary" type="button" disabled>Download best 2T preset</button></div>
+          <div class="notice lab-notice"><strong>Integrity protection:</strong> if a generated 2T tester records a different duration, that tester is stopped and those rows are excluded from its score and leaderboard.</div>
+        </div>
+
+
+        <div id="rfLabBuilder" class="lab-builder rf-lab-builder"></div>
+      </article>
+
+      <article class="card ai-optimizer-card" data-ai-engine="rise_fall">
+        <div class="card-header">
+          <div><div class="eyebrow">LOCAL OLLAMA RESEARCH</div><h3>Rise/Fall Ollama Optimizer</h3><p>Uses your self-hosted Ollama model to research 2T configs, run controlled Lab challengers, adapt among validated configs, or operate the main bot in explicit AI Trade mode.</p></div>
+          <span class="micro-badge neutral" data-ai-role="badge">AI idle</span>
+        </div>
+        <div class="notice lab-notice"><strong>Guardrails:</strong> Advisor only recommends. Auto Lab remains DEMO-only. Adaptive uses validated configs on DEMO. AI Trade can trade on the configured account only after you enable it and type LIVE; Ollama cannot change your stake/capital/order count, compounding is forced off, and local session safety limits can stop trading.</div>
+        <div class="form-grid ai-optimizer-grid">
+          <label class="field"><span>Ollama server URL</span><input data-ai-field="ollama_url" type="text" value="http://localhost:11434"><small data-ai-role="provider-status">Local Ollama · not tested</small></label>
+          <label class="field"><span>Ollama model</span><input data-ai-field="model" type="text" value="qwen3:8b"><small>Use any installed Ollama model that can follow structured JSON instructions.</small></label>
+          <label class="field"><span>Thinking</span><select data-ai-field="thinking"><option value="none">Off</option><option value="low" selected>Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
+          <label class="field"><span>Model keep-alive</span><input data-ai-field="keep_alive" type="text" value="10m"><small>Example: 10m, 1h, -1.</small></label>
+          <label class="field"><span>Operating mode</span><select data-ai-field="mode"><option value="advisor">Advisor</option><option value="auto_lab">Auto Lab</option><option value="adaptive">Adaptive</option><option value="live_trade">AI Trade</option></select></label>
+          <label class="field"><span>AI Trade confirmation</span><input data-ai-field="live_confirmation" type="text" autocomplete="off" placeholder="Type LIVE when starting AI Trade"><small>Not saved. Required each time AI Trade starts.</small></label>
+          <label class="field"><span>Analyze every completed trades</span><input data-ai-field="analyze_every" type="number" min="5" max="1000" step="1" value="25"></label>
+          <label class="field"><span>Explore target</span><input data-ai-field="explore_trades" type="number" min="20" step="1" value="30"></label>
+          <label class="field"><span>Refine target</span><input data-ai-field="refine_trades" type="number" min="20" step="1" value="75"></label>
+          <label class="field"><span>Validate target</span><input data-ai-field="validate_trades" type="number" min="20" step="1" value="150"></label>
+          <label class="field"><span>Final validation</span><input data-ai-field="final_trades" type="number" min="20" step="1" value="250"></label>
+          <label class="field"><span>Concurrent candidates</span><input data-ai-field="max_concurrent" type="number" min="1" max="4" step="1" value="4"></label>
+          <label class="field"><span>Stage time cap (minutes)</span><input data-ai-field="max_minutes_per_stage" type="number" min="5" max="1440" step="1" value="60"></label>
+          <label class="field"><span>Minimum profit factor</span><input data-ai-field="min_profit_factor" type="number" min="0.5" max="5" step="0.05" value="1.20"></label>
+          <label class="field"><span>Minimum edge (pp)</span><input data-ai-field="min_edge_pp" type="number" min="-20" max="30" step="0.5" value="3"><small>Used for Rise/Fall validation.</small></label>
+          <label class="field"><span>Allow AI Trade</span><select data-ai-field="allow_live_trading"><option value="false" selected>Off</option><option value="true">On</option></select><small>Master switch for automated main-engine trading.</small></label>
+          <label class="field"><span>AI Trade max session loss</span><input data-ai-field="live_max_loss" type="number" min="0.35" step="0.01" value="10.00"></label>
+          <label class="field"><span>AI Trade profit target</span><input data-ai-field="live_profit_target" type="number" min="0" step="0.01" value="20.00"><small>0 disables the profit target.</small></label>
+          <label class="field"><span>AI Trade max trades</span><input data-ai-field="live_max_trades" type="number" min="1" step="1" value="100"></label>
+          <label class="field"><span>Min validated trades</span><input data-ai-field="live_min_validated_trades" type="number" min="30" step="1" value="150"></label>
+          <label class="field"><span>Min validated PF</span><input data-ai-field="live_min_profit_factor" type="number" min="1" step="0.05" value="1.25"></label>
+          <label class="field"><span>Min live RF edge (pp)</span><input data-ai-field="live_min_edge_pp" type="number" min="-10" max="30" step="0.5" value="2"><small>Applied to Rise/Fall live eligibility.</small></label>
+          <label class="field"><span>If Ollama fails during AI Trade</span><select data-ai-field="live_fail_closed"><option value="true" selected>Stop trading</option><option value="false">Hold current validated config</option></select></label>
+          <label class="field"><span>Lab stake / trade</span><input data-ai-field="stake" type="number" min="0.35" step="0.01" value="1.00"><small>Fixed by you; AI cannot change it.</small></label>
+          
+        </div>
+        <div class="ai-optimizer-actions">
+          <button class="button secondary" data-ai-action="save" type="button">Save Ollama settings</button>
+          <button class="button secondary" data-ai-action="test" type="button">Test Ollama</button>
+          <button class="button secondary" data-ai-action="advisor" type="button">Run Ollama Advisor</button>
+          <button class="button primary" data-ai-action="start" type="button">Start selected mode</button>
+          <button class="button danger" data-ai-action="stop" type="button" disabled>Stop AI</button>
+          <button class="button secondary" data-ai-action="download" type="button">Download AI best preset</button>
+        </div>
+        <div class="ai-optimizer-status">
+          <span><small>State</small><strong data-ai-role="state">IDLE</strong></span>
+          <span><small>Stage / target</small><strong data-ai-role="stage">—</strong></span>
+          <span><small>Best candidate</small><strong data-ai-role="best">Need data</strong></span>
+          <span class="ai-summary"><small>Ollama analysis</small><strong data-ai-role="summary">No analysis yet.</strong></span>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-header"><div><h3>Configuration comparison</h3><p>Ranking is a screening aid, not a profit claim. Proposal break-even is compared with observed win rate and a 95% Wilson lower bound.</p></div><div class="rf-optimizer-actions"><button id="rfLabSummaryMd" class="button secondary small" type="button" disabled>Run report .MD</button><button id="rfLabSummaryJson" class="button secondary small" type="button" disabled>Run report .JSON</button></div></div>
+        <div class="table-wrap"><table class="rf-lab-table"><thead><tr><th>Rank / Config</th><th>State</th><th>Trades</th><th>W / L</th><th>Win %</th><th>Break-even</th><th>Observed edge</th><th>95% edge</th><th>PF</th><th>P/L</th><th>Drawdown</th><th>Grade</th><th>Actions</th></tr></thead><tbody id="rfLabResults"><tr><td colspan="13" class="empty">Build a Rise/Fall experiment to begin.</td></tr></tbody></table></div>
+      </article>
+
+      <article class="card">
+        <div class="card-header"><div><h3>Rise/Fall Lab console</h3><p>Only output from the selected Rise/Fall tester appears here.</p></div><select id="rfLabConsoleSelect" class="lab-console-select"><option value="">No tester selected</option></select></div>
+        <pre id="rfLabConsole" class="terminal">Rise/Fall Lab ready.</pre>
+      </article>
+    </section>
+
+    <section id="tab-lab" class="panel tab-panel">
+      <div class="section-heading">
+        <div>
+          <div class="eyebrow">PARALLEL DEMO TESTING</div>
+          <h2>Multiplier Strategy Lab</h2>
+          <p>Run multiple isolated multiplier strategy bots on the same demo account and compare strategy + configuration performance side by side.</p>
+        </div>
+        <div class="lab-top-actions">
+          <span id="labRunBadge" class="badge neutral">Lab idle</span>
+          <button type="button" id="labAddBotButton" class="button secondary">+ Add test bot</button>
+          <button type="button" id="labStopAllButton" class="button danger" disabled>Stop all entries</button>
+          <button type="button" id="labStartAllButton" class="button primary">Run comparison</button>
+        </div>
+      </div>
+
+      <div class="notice lab-notice"><strong>Graceful stop:</strong> Stop disables new MULTUP/MULTDOWN entries immediately, but every open tester position stays managed until its normal TP/Smart/Hybrid exit completes. The bot will reconnect if needed while draining. <strong>Multi-open lab:</strong> Strategy Lab is demo-only. Each tester can use its own maximum simultaneous openings, exact trades-per-signal count, and stagger delay. Each tester still manages only contracts it opened. For cleaner strategy evidence, 1 trade per signal is more independent; opening several from the same signal produces correlated trades.</div>
+
+
+      <article class="card ai-optimizer-card" data-ai-engine="multiplier">
+        <div class="card-header">
+          <div><div class="eyebrow">LOCAL OLLAMA RESEARCH</div><h3>Multiplier Ollama Optimizer</h3><p>Uses your self-hosted Ollama model to screen strategy/profile/multiplier/exit combinations, validate them, adapt among validated configs, or operate the main bot in explicit AI Trade mode.</p></div>
+          <span class="micro-badge neutral" data-ai-role="badge">AI idle</span>
+        </div>
+        <div class="notice lab-notice"><strong>Guardrails:</strong> Advisor only recommends. Auto Lab remains DEMO-only. Adaptive uses validated configs on DEMO. AI Trade can trade on the configured account only after you enable it and type LIVE; Ollama cannot change your stake/capital/order count, compounding is forced off, and local session safety limits can stop trading.</div>
+        <div class="form-grid ai-optimizer-grid">
+          <label class="field"><span>Ollama server URL</span><input data-ai-field="ollama_url" type="text" value="http://localhost:11434"><small data-ai-role="provider-status">Local Ollama · not tested</small></label>
+          <label class="field"><span>Ollama model</span><input data-ai-field="model" type="text" value="qwen3:8b"><small>Use any installed Ollama model that can follow structured JSON instructions.</small></label>
+          <label class="field"><span>Thinking</span><select data-ai-field="thinking"><option value="none">Off</option><option value="low" selected>Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
+          <label class="field"><span>Model keep-alive</span><input data-ai-field="keep_alive" type="text" value="10m"><small>Example: 10m, 1h, -1.</small></label>
+          <label class="field"><span>Operating mode</span><select data-ai-field="mode"><option value="advisor">Advisor</option><option value="auto_lab">Auto Lab</option><option value="adaptive">Adaptive</option><option value="live_trade">AI Trade</option></select></label>
+          <label class="field"><span>AI Trade confirmation</span><input data-ai-field="live_confirmation" type="text" autocomplete="off" placeholder="Type LIVE when starting AI Trade"><small>Not saved. Required each time AI Trade starts.</small></label>
+          <label class="field"><span>Analyze every completed trades</span><input data-ai-field="analyze_every" type="number" min="5" max="1000" step="1" value="25"></label>
+          <label class="field"><span>Explore target</span><input data-ai-field="explore_trades" type="number" min="20" step="1" value="30"></label>
+          <label class="field"><span>Refine target</span><input data-ai-field="refine_trades" type="number" min="20" step="1" value="75"></label>
+          <label class="field"><span>Validate target</span><input data-ai-field="validate_trades" type="number" min="20" step="1" value="150"></label>
+          <label class="field"><span>Final validation</span><input data-ai-field="final_trades" type="number" min="20" step="1" value="250"></label>
+          <label class="field"><span>Concurrent candidates</span><input data-ai-field="max_concurrent" type="number" min="1" max="4" step="1" value="4"></label>
+          <label class="field"><span>Stage time cap (minutes)</span><input data-ai-field="max_minutes_per_stage" type="number" min="5" max="1440" step="1" value="60"></label>
+          <label class="field"><span>Minimum profit factor</span><input data-ai-field="min_profit_factor" type="number" min="0.5" max="5" step="0.05" value="1.20"></label>
+          <label class="field"><span>Minimum edge (pp)</span><input data-ai-field="min_edge_pp" type="number" min="-20" max="30" step="0.5" value="3"><small>Used for Rise/Fall validation.</small></label>
+          <label class="field"><span>Allow AI Trade</span><select data-ai-field="allow_live_trading"><option value="false" selected>Off</option><option value="true">On</option></select><small>Master switch for automated main-engine trading.</small></label>
+          <label class="field"><span>AI Trade max session loss</span><input data-ai-field="live_max_loss" type="number" min="0.35" step="0.01" value="10.00"></label>
+          <label class="field"><span>AI Trade profit target</span><input data-ai-field="live_profit_target" type="number" min="0" step="0.01" value="20.00"><small>0 disables the profit target.</small></label>
+          <label class="field"><span>AI Trade max trades</span><input data-ai-field="live_max_trades" type="number" min="1" step="1" value="100"></label>
+          <label class="field"><span>Min validated trades</span><input data-ai-field="live_min_validated_trades" type="number" min="30" step="1" value="150"></label>
+          <label class="field"><span>Min validated PF</span><input data-ai-field="live_min_profit_factor" type="number" min="1" step="0.05" value="1.25"></label>
+          <label class="field"><span>Min live RF edge (pp)</span><input data-ai-field="live_min_edge_pp" type="number" min="-10" max="30" step="0.5" value="2"><small>Applied to Rise/Fall live eligibility.</small></label>
+          <label class="field"><span>If Ollama fails during AI Trade</span><select data-ai-field="live_fail_closed"><option value="true" selected>Stop trading</option><option value="false">Hold current validated config</option></select></label>
+          <label class="field"><span>Lab stake / trade</span><input data-ai-field="stake" type="number" min="0.35" step="0.01" value="1.00"><small>Fixed by you; AI cannot change it.</small></label>
+          <label class="field"><span>Max open / candidate</span><input data-ai-field="max_open" type="number" min="1" max="10" step="1" value="1"></label>
+          <label class="field"><span>Trades per signal</span><input data-ai-field="trades_per_signal" type="number" min="1" max="10" step="1" value="1"></label>
+          <label class="field"><span>Stagger delay (sec)</span><input data-ai-field="split_delay" type="number" min="0" max="60" step="0.1" value="0.5"></label>
+        </div>
+        <div class="ai-optimizer-actions">
+          <button class="button secondary" data-ai-action="save" type="button">Save Ollama settings</button>
+          <button class="button secondary" data-ai-action="test" type="button">Test Ollama</button>
+          <button class="button secondary" data-ai-action="advisor" type="button">Run Ollama Advisor</button>
+          <button class="button primary" data-ai-action="start" type="button">Start selected mode</button>
+          <button class="button danger" data-ai-action="stop" type="button" disabled>Stop AI</button>
+          <button class="button secondary" data-ai-action="download" type="button">Download AI best preset</button>
+        </div>
+        <div class="ai-optimizer-status">
+          <span><small>State</small><strong data-ai-role="state">IDLE</strong></span>
+          <span><small>Stage / target</small><strong data-ai-role="stage">—</strong></span>
+          <span><small>Best candidate</small><strong data-ai-role="best">Need data</strong></span>
+          <span class="ai-summary"><small>Ollama analysis</small><strong data-ai-role="summary">No analysis yet.</strong></span>
+        </div>
+      </article>
+
+      <article class="card lab-defaults-card">
+        <div class="card-header"><div><h2>Lab defaults</h2><p>New tester cards inherit these values. You can still change each tester separately.</p></div><span class="micro-badge neutral">Max 8 bots</span></div>
+        <div class="form-grid">
+          <label class="field"><span>Stake per trade</span><input id="labDefaultStake" type="number" min="0.35" step="0.01" value="1.00"><small>Each open position uses this stake.</small></label>
+          <label class="field"><span>Max simultaneous openings</span><input id="labDefaultMaxOpen" type="number" min="1" max="50" step="1" value="3"><small>Maximum open contracts for each new tester.</small></label>
+          <label class="field"><span>Trades per signal</span><input id="labDefaultTradesPerSignal" type="number" min="1" max="50" step="1" value="1"><small>Exact maximum positions each fresh signal may open.</small></label>
+          <label class="field"><span>Stagger delay (seconds)</span><input id="labDefaultSplitDelay" type="number" min="0" max="3600" step="0.1" value="0.5"><small>Used between entries when filling slots.</small></label>
+          <label class="field"><span>Multiplier</span><select id="labDefaultMultiplier"><option value="750">×750</option><option value="2000">×2000</option><option value="3500">×3500</option><option value="5500">×5500</option><option value="7500">×7500</option></select></label>
+          <label class="field"><span>Exit mode</span><select id="labDefaultExit"><option value="fixed">Fixed TP</option><option value="adaptive">Adaptive TP</option><option value="smart">Smart trailing</option><option value="hybrid" selected>Hybrid smart exit</option></select></label>
+          <label class="field"><span>Profit measurement</span><select id="labDefaultTpUnit"><option value="amount" selected>Money amount</option><option value="ticks">Step ticks</option></select></label>
+          <label class="field"><span>Minimum / fixed TP</span><input id="labDefaultTp" type="number" min="0.10" step="0.01" value="0.10"></label>
+          <label class="field"><span>Max adaptive TP</span><input id="labDefaultTpMax" type="number" min="0.10" step="0.01" value="0.30"></label>
+          <label class="field"><span>Smart activation ($)</span><input id="labSmartActivation" type="number" min="0.10" step="0.01" value="0.15"></label>
+          <label class="field"><span>Protected floor ($)</span><input id="labSmartFloor" type="number" min="0.10" step="0.01" value="0.10"></label>
+          <label class="field"><span>Smart activation ticks</span><input id="labSmartActivationTicks" type="number" min="1" step="1" value="3"></label>
+          <label class="field"><span>Protected floor ticks</span><input id="labSmartFloorTicks" type="number" min="1" step="1" value="1"></label>
+          <label class="field"><span>Minimum trail ticks</span><input id="labSmartMinDistanceTicks" type="number" min="1" step="1" value="1"></label>
+          <label class="field"><span>Emergency server TP</span><input id="labServerTp" type="number" min="0.10" step="0.01" value="2.00"></label>
+        </div>
+      </article>
+
+      <div id="labBotBuilder" class="lab-builder"></div>
+
+      <article class="card lab-scoreboard-card">
+        <div class="card-header">
+          <div><h2>Live comparison scoreboard</h2><p>Profit is the primary sort, with win rate, trade count, signal, open P/L, and reconnect health alongside it.</p></div>
+          <div class="lab-scoreboard-actions">
+            <div class="lab-summary"><span id="labActiveCount">0 active</span><strong id="labCombinedProfit">0.00</strong><small>combined realized P/L</small></div>
+            <div class="lab-report-actions">
+              <button id="labDownloadSummaryMd" type="button" class="button secondary small" disabled>Run report .MD</button>
+              <button id="labDownloadSummaryJson" type="button" class="button secondary small" disabled>Run report .JSON</button>
+            </div>
+          </div>
+        </div>
+        <div class="table-wrap lab-table-wrap">
+          <table class="lab-table">
+            <thead><tr><th>Tester</th><th>Strategy / config</th><th>Status</th><th>Trades</th><th>W / L</th><th>Win rate</th><th>Realized P/L</th><th>Open P/L</th><th>Signal</th><th>Open / max</th><th>Reconnects</th><th>Action</th></tr></thead>
+            <tbody id="labResultsBody"><tr><td colspan="12" class="empty">Add two or more test bots to begin a comparison.</td></tr></tbody>
+          </table>
+        </div>
+      </article>
+
+      <div class="notice lab-report-notice"><strong>Optimization logs:</strong> When a tester finishes draining, V2.18 automatically creates a sanitized Markdown report and JSON report with the exact strategy settings, performance, drawdown, streaks, average win/loss, exit-reason breakdown, reconnect count, and trade sample. Use the Report buttons after stopping, then upload those files to ChatGPT for tuning. Credentials and contract IDs are omitted.</div>
+
+      <article class="card terminal-card lab-console-card">
+        <div class="card-header">
+          <div><h2>Tester console</h2><p>Select a Strategy Lab bot to inspect its raw output and reconnect events.</p></div>
+          <select id="labConsoleSelect" class="lab-console-select"><option value="">No tester selected</option></select>
+        </div>
+        <pre id="labConsoleOutput" class="terminal">Multiplier Strategy Lab ready. Add test bots, then run the comparison.</pre>
+      </article>
+    </section>
+
+    <section id="tab-credentials" class="panel tab-panel">
+      <div class="section-heading"><div><h2>Credentials and connection</h2><p>Saved only in the local <code>.env</code> file. The API token is never sent back to the browser.</p></div><div id="credentialBadge" class="badge neutral">Not configured</div></div>
+
+      <article class="card credential-help-card">
+        <div class="credential-help-heading">
+          <div>
+            <div class="eyebrow">DERIV SETUP HELP</div>
+            <h3>Where do I get my credentials?</h3>
+            <p>Use the official Deriv developer pages below. Keep your API/PAT token private and only save it on your own device.</p>
+          </div>
+        </div>
+        <div class="credential-help-grid">
+          <div class="credential-help-item">
+            <div class="credential-help-icon">🔑</div>
+            <div class="credential-help-copy">
+              <strong>API / PAT token</strong>
+              <p>Create a new token or manage your existing Deriv API tokens from the Deriv Developer token dashboard.</p>
+              <a class="button secondary credential-help-link" href="https://developers.deriv.com/dashboard/tokens/" target="_blank" rel="noopener noreferrer">Open Deriv Token Dashboard ↗</a>
+            </div>
+          </div>
+          <div class="credential-help-item">
+            <div class="credential-help-icon">👤</div>
+            <div class="credential-help-copy">
+              <strong>Options account ID</strong>
+              <p>Open the Deriv API Playground and use the Options account ID associated with the account you want Control Nexus to connect to.</p>
+              <a class="button secondary credential-help-link" href="https://developers.deriv.com/playground/" target="_blank" rel="noopener noreferrer">Open Deriv API Playground ↗</a>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <form id="credentialsForm" class="card form-card">
+        <div class="form-grid">
+          <label class="field wide"><span>New PAT token</span><input name="token" type="password" autocomplete="new-password" placeholder="Leave blank to keep the saved token"><small>Create/manage tokens above. Never paste this token into chat, screenshots, or shared files.</small></label>
+          <label class="field"><span>Deriv App ID</span><input name="app_id" autocomplete="off" required></label>
+          <label class="field"><span>Options account ID</span><input name="account_id" autocomplete="off" required><small>Use the Deriv API Playground link above if you need to find your Options account ID.</small></label>
+          <label class="field"><span>Underlying symbol</span><input name="symbol" value="stpRNG" required></label>
+        </div>
+        <div class="form-actions left">
+          <button type="submit" class="button primary">Save locally</button>
+          <button type="button" id="testConnectionButton" class="button secondary">Test connection and balance</button>
+        </div>
+      </form>
+      <div class="notice warning"><strong>Security:</strong> this dashboard listens on <code>127.0.0.1</code> by default. Do not expose it to the internet or forward its port.</div>
+    </section>
+
+    <section id="tab-history" class="panel tab-panel">
+      <div class="section-heading"><div><h2>Trade history</h2><p>Latest rows from <code>trades_v2.csv</code>.</p></div><button id="clearHistoryButton" class="button secondary">Archive and clear</button></div>
+      <div class="status-grid history-summary">
+        <article class="metric-card"><span>Total trades</span><strong id="historyTrades">0</strong></article>
+        <article class="metric-card"><span>Wins</span><strong id="historyWins">0</strong></article>
+        <article class="metric-card"><span>Losses</span><strong id="historyLosses">0</strong></article>
+        <article class="metric-card"><span>Total P/L</span><strong id="historyProfit">0.00</strong></article>
+        <article class="metric-card"><span>Win rate</span><strong id="historyWinRate">0.0%</strong></article>
+      </div>
+      <article class="card pattern-performance-card">
+        <div class="card-header"><div><h2>Candlestick pattern performance</h2><p>Closed trades attributed to a candle pattern. Use this to disable patterns that repeatedly underperform instead of guessing.</p></div><span class="micro-badge neutral">Pattern attribution</span></div>
+        <div class="table-wrap compact"><table><thead><tr><th>Pattern</th><th>Trades</th><th>W / L</th><th>Win rate</th><th>P/L</th><th>Avg trade</th></tr></thead><tbody id="patternPerformanceBody"><tr><td colspan="6" class="empty">No candle-attributed trades yet.</td></tr></tbody></table></div>
+      </article>
+      <div class="table-wrap">
+        <table>
+          <thead id="historyHead"></thead>
+          <tbody id="historyBody"><tr><td class="empty">No trades recorded</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  
+  </main>
+
+  <dialog id="uiSettingsDialog" class="ui-settings-dialog">
+    <div class="ui-settings-head">
+      <div><div class="eyebrow">INTERFACE CONTROL</div><h2>Appearance & refresh</h2><p>These settings affect this browser/app only and do not change trading logic.</p></div>
+      <button id="closeUiSettingsButton" class="ui-settings-close" type="button" aria-label="Close settings">×</button>
+    </div>
+    <div class="ui-settings-grid">
+      <div class="field wide theme-swatch-field">
+        <span>Theme style</span>
+        <div class="theme-swatch-grid" id="uiThemeSwatches">
+          <button type="button" class="theme-swatch" data-theme-choice="glass"><span class="theme-swatch-preview theme-swatch-glass"></span>Glass</button>
+          <button type="button" class="theme-swatch" data-theme-choice="wood"><span class="theme-swatch-preview theme-swatch-wood"></span>Wood</button>
+          <button type="button" class="theme-swatch" data-theme-choice="forest"><span class="theme-swatch-preview theme-swatch-forest"></span>Forest</button>
+          <button type="button" class="theme-swatch" data-theme-choice="cyber"><span class="theme-swatch-preview theme-swatch-cyber"></span>Cyber</button>
+          <button type="button" class="theme-swatch" data-theme-choice="water"><span class="theme-swatch-preview theme-swatch-water"></span>Water</button>
+          <button type="button" class="theme-swatch" data-theme-choice="gamer"><span class="theme-swatch-preview theme-swatch-gamer"></span>Gamer</button>
+        </div>
+        <small>Pick a style for the material and ambient animation, then fine-tune colors below if you like.</small>
+      </div>
+      <label class="field"><span>Refresh speed</span><select id="uiRefreshSpeed"><option value="500">0.5 sec</option><option value="750">0.75 sec</option><option value="1000">1 sec</option><option value="1500">1.5 sec</option><option value="2000">2 sec</option><option value="3000">3 sec</option><option value="5000">5 sec</option><option value="10000">10 sec</option></select><small>Faster refresh uses more battery/CPU.</small></label>
+      <label class="field color-field"><span>Primary accent</span><input id="uiAccentColor" type="color" value="#6ea8ff"></label>
+      <label class="field color-field"><span>Secondary accent</span><input id="uiAccent2Color" type="color" value="#8b5cf6"></label>
+      <label class="field color-field"><span>Data / highlight</span><input id="uiHighlightColor" type="color" value="#7ffcf1"></label>
+      <label class="field color-field"><span>Base background</span><input id="uiBackgroundColor" type="color" value="#0a0f1a"></label>
+      <label class="field image-field"><span>Hero image</span><input id="uiHeroImageInput" type="file" accept="image/*"><small>Changes the square image at the top of the app.</small></label>
+      <div class="field image-action-field"><span>Hero image</span><button id="removeHeroImageButton" class="button secondary" type="button">Use default image</button></div>
+      <label class="field image-field"><span>App background image</span><input id="uiBackgroundImageInput" type="file" accept="image/*"><small>Stored locally on this device after resizing.</small></label>
+      <label class="field"><span>Background image strength</span><input id="uiBackgroundImageOpacity" type="range" min="0" max="70" step="5" value="20"><small><span id="uiBackgroundImageOpacityLabel">20%</span> image visibility</small></label>
+      <div class="field image-action-field"><span>Background image</span><button id="removeBackgroundImageButton" class="button secondary" type="button">Remove background image</button></div>
+    </div>
+    <div class="ui-settings-actions">
+      <button id="resetUiSettingsButton" class="button secondary" type="button">Reset UI</button>
+      <button id="doneUiSettingsButton" class="button primary" type="button">Done</button>
+    </div>
+  </dialog>
+
+
+  <dialog id="riskNoticeDialog" class="risk-notice-dialog">
+    <div class="risk-notice-head">
+      <div>
+        <div class="eyebrow">TRADING RISK NOTICE</div>
+        <h2>Use Control Nexus at your own risk</h2>
+      </div>
+      <button id="closeRiskNoticeButton" class="ui-settings-close" type="button" aria-label="Close risk notice">×</button>
+    </div>
+    <div class="risk-notice-body">
+      <div class="risk-warning-icon" aria-hidden="true">⚠</div>
+      <div>
+        <p><strong>You are solely responsible for using this tool and for every setting, trade, account action, issue, or financial loss that may result.</strong></p>
+        <p>Control Nexus can place automated trades when trading is enabled. No developer, distributor, contributor, or other person is responsible or accountable for losses, damages, account issues, incorrect settings, connection problems, or other consequences arising from your use of this software.</p>
+        <p>This tool does not guarantee profits, cannot prevent losses, and is not financial advice. Only trade with money you can afford to lose.</p>
+        <div class="commission-disclosure"><div class="commission-disclosure-rate">1%–3%</div><div><strong>App markup commission</strong><p>The app markup commission is 1%–3%, and is typically 1%. By deploying or using this bot, you acknowledge and agree to the applicable markup commission.</p></div></div>
+        <p class="backend-close-note"><strong>Closing the app:</strong> new entries are stopped first. If positions are still being managed, the backend remains active only until those positions finish their normal exits, then it shuts down automatically.</p>
+      </div>
+    </div>
+    <div class="risk-notice-actions">
+      <button id="riskNoticeUnderstandButton" class="button primary" type="button">I understand &amp; agree</button>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

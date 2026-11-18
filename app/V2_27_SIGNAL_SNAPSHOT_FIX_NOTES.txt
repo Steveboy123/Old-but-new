@@ -1,0 +1,14 @@
+Dr Exploit Control Nexus V2.27 — Signal Snapshot Integrity Fix
+
+FIXED
+- Multiplier split batches no longer read changing live metrics when each contract opens.
+- The strategy signal metrics are deep-copied once when the entry signal is accepted.
+- entry_pattern, ensemble sources/regime/votes, and adaptive TP scoring now use that frozen snapshot.
+- Hammer mode blocks an entry if the accepted signal somehow has no valid frozen pattern instead of recording NONE.
+- Entry diagnostics now record the frozen pattern and signal epoch for opened contracts.
+
+WHY
+V2.26 could open a valid Hammer batch, then later ticks could replace last_metrics before later split contracts were created. Those contracts could therefore be logged as entry_pattern=NONE even though the original batch was triggered by a valid pattern.
+
+INSTALL
+V2.27 upgrades the existing Control Nexus installation in place and preserves user presets, history, lab runs, optimizer settings, and credentials using the existing installer backup/restore flow.

@@ -1,0 +1,14 @@
+Dr Exploit Control Nexus V2.23 — Rise/Fall Lab + Dual Engine UI
+
+- New top-level Multiplier / Rise-Fall UI switch.
+- Existing Strategy Lab renamed visually to Multiplier Strategy Lab.
+- New independent Rise/Fall Configuration Lab (DEMO only), max 4 testers.
+- Every RF Lab tester has isolated trade CSV, telemetry, control channel and console.
+- Main Rise/Fall engine and RF Lab cannot run at the same time.
+- RF Lab never uses multiplier config/trade history.
+- Compares win rate, proposal break-even, observed edge, 95% Wilson lower edge, PF, return on stake, drawdown and streaks.
+- Generates per-tester MD/JSON reports and aggregate MD/JSON run summary.
+- Built-in 2T/3T/5T/7T Momentum matrix and 3T mode-comparison matrix.
+- Saved Rise/Fall presets can be loaded into the RF Lab builder without modifying the live form.
+- Default lab execution is fixed stake, max open 1, one trade per signal, compounding off.
+- Fixed Deriv App ID remains 346MK1Nd8vpaSJy7EzQQT.

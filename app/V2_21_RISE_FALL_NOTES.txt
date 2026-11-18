@@ -1,0 +1,73 @@
+Dr Exploit Control Nexus V2.21 — Rise/Fall Step 100
+===================================================
+
+NEW DEDICATED SECTION
+- Adds a separate Rise / Fall page for Step 100 Index.
+- Uses its own process (rise_fall_bot.py), configuration, session risk rules,
+  telemetry, console and rise_fall_trades.csv history.
+- Does not replace or mix settings with the existing MULTUP / MULTDOWN engine.
+
+CONTRACT MODEL
+- The engine expects the current Rise/Fall CALL and PUT contract family.
+- At startup it reads contracts_for sentiment metadata to map the upward side
+  to RISE and downward side to FALL instead of trusting a stale legacy label.
+- Contracts use the selected fixed duration/expiry.
+- The engine refuses to trade if CALL and PUT are not currently available for
+  the resolved Step 100 symbol.
+
+BEST ODDS AUTO
+- Reads Step 100 ticks and builds transparent direction scores from:
+  trend (EMA pressure), momentum, reversal pressure and range/breakout state.
+- Requests fresh CALL and PUT proposals from Deriv and calculates the proposal
+  return and break-even percentage for each side.
+- A direction must first pass minimum model confidence, minimum direction edge
+  and minimum live return. Only qualified sides are ranked by the combined
+  model-confidence + proposal-return score.
+- This is a selection model, not a guarantee or prediction of profit.
+
+OWN CONFIGURATION
+Trade tab:
+- Signals only / Demo auto trade / REAL auto trade
+- Capital allocation, split slots, max open and exact trades per signal
+- Split delay, compound-when-flat
+- Contract duration in ticks, seconds or minutes
+- Auto / RISE-only / FALL-only direction policy
+
+Model tab:
+- Best Odds Auto, Consensus, Trend, Momentum or Reversal mode
+- Lookback ticks
+- Minimum confidence and direction edge
+- Minimum live return
+- Individual trend/momentum/reversal/breakout weights
+- Cooldown and proposal refresh rate
+
+Risk tab:
+- Continue, first loss, consecutive losses or total-loss stop behavior
+- Session profit target, session loss limit and win target
+
+Live tab:
+- Pause / resume new Rise/Fall entries
+- Apply model, duration, max-open and risk settings while running
+- Capital/split/compounding changes queue until Rise/Fall positions are flat
+- REAL auto trade still requires an explicit LIVE confirmation
+
+LIVE MONITOR
+- Step 100 tick chart
+- Separate RISE/CALL and FALL/PUT proposal cards
+- Model confidence, payout, live return, break-even and combined score
+- RSI, momentum, model edge, range position and volatility
+- Open fixed-expiry contracts and current P/L
+- Persistent Rise/Fall history with total trades, win rate and aggregate P/L
+- Dedicated engine console and runtime revision
+
+SAFETY / LIFECYCLE
+- Default configuration is Signals only.
+- No API token is exposed in telemetry or returned to the browser.
+- Settled contract subscriptions are released.
+- Stop requests stop new entries first and let already-open fixed-expiry
+  contracts settle normally before the Rise/Fall process exits.
+- Closing the local web dashboard sends the same graceful stop request to the
+  Rise/Fall process.
+
+V2.20 Command Deck, Advanced dashboard customization, account API widgets,
+presets, themes, Strategy Lab and the existing multiplier engine remain intact.

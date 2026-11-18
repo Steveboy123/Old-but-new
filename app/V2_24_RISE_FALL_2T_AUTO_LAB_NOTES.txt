@@ -1,0 +1,14 @@
+Dr Exploit Control Nexus V2.24 — Rise/Fall 2T Auto Lab
+
+- Added DEMO-only Auto Lab with Explore -> Refine -> Validate rounds.
+- Generated Auto Lab candidates are hard-locked to 2 ticks.
+- Added duration-integrity filtering; mismatched expiry rows are excluded from scoring.
+- Auto Lab stops a candidate after its target number of valid trades.
+- Refine rounds mutate confidence, edge, lookback and cooldown around the current leader.
+- Validation round re-tests the strongest unique candidates at a larger sample size.
+- Added sample-size-aware Auto Score and persistent leaderboard artifacts.
+- Automatically writes RF_AUTO_LAB_BEST_2T.json in the normal importable preset layout.
+- Replaced old 2T/3T/5T/7T quick matrix with a 2T tuning matrix.
+- Replaced old 3T mode matrix with a 2T mode comparison.
+- Increased parallel tester startup staggering from 0.35s to 2.0s to reduce authenticated WebSocket request bursts.
+- Auto Lab remains fixed stake, compounding off, max-open 1, and DEMO only.

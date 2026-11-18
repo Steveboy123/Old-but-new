@@ -1,0 +1,33 @@
+Dr Exploit Control Nexus V2.26 — Ollama AI Trader
+
+NEW
+- Replaced OpenAI cloud API integration with self-hosted Ollama.
+- Configurable Ollama URL, model, thinking control and model keep-alive.
+- Test Ollama connection and list installed local/server models.
+- Structured JSON-schema optimizer plans through Ollama /api/chat.
+- Advisor, Auto Lab and Adaptive modes remain available for Rise/Fall + Multiplier.
+- New AI Trade mode for both engines.
+
+AI TRADE
+- Requires Allow AI Trade = On and typing LIVE every time the mode starts.
+- Uses only candidates that were already validated by the AI Lab and meet the
+  configured live minimum trades / profit-factor / edge thresholds.
+- The deterministic local trading bot still decides and executes entries. Ollama
+  selects among validated configurations; it does not get a raw buy/sell API.
+- AI cannot change stake, capital, max-open count or trades-per-signal.
+- Compounding is forced off when AI Trade starts.
+- Configurable session maximum loss, profit target and maximum trade count.
+- Native bot profit/loss caps are also populated for redundant stopping.
+- Default fail-closed behavior stops the trading engine if Ollama fails during a
+  scheduled live adaptation. This may be changed to hold the current validated config.
+
+RESEARCH
+- Rise/Fall Auto Lab remains DEMO-only and hard-locked to 2 ticks.
+- Multiplier Auto Lab remains DEMO-only.
+- Adaptive remains DEMO-only.
+- AI Trade may operate DEMO or LIVE depending on the configured Deriv account.
+
+PRIVACY
+- No cloud AI key is required or stored.
+- No OpenAI key is preserved during V2.26 upgrade.
+- Ollama URL/model settings and optimizer history are stored locally.

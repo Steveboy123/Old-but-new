@@ -1,0 +1,495 @@
+{
+  "catalog": [
+    {
+      "id": "ema_rsi",
+      "label": "EMA + RSI Momentum",
+      "description": "Trend + RSI + directional tick confirmation."
+    },
+    {
+      "id": "hammer",
+      "label": "Candlestick Pattern Engine Pro",
+      "description": "1m chart-aligned OHLC patterns with selectable sub-types and wick/body percentage geometry."
+    },
+    {
+      "id": "macd",
+      "label": "MACD Trend Crossover",
+      "description": "MACD line and signal-line momentum crossover."
+    },
+    {
+      "id": "bollinger_reversion",
+      "label": "Bollinger Mean Reversion",
+      "description": "Fade statistically stretched moves back toward the mean."
+    },
+    {
+      "id": "bollinger_breakout",
+      "label": "Bollinger Breakout",
+      "description": "Follow strong moves outside the Bollinger channel."
+    },
+    {
+      "id": "stochastic",
+      "label": "Stochastic Reversal",
+      "description": "Trade momentum reversals from overbought/oversold zones."
+    },
+    {
+      "id": "donchian",
+      "label": "Donchian Breakout",
+      "description": "Trade new highs or lows outside a prior price channel."
+    },
+    {
+      "id": "rsi_pullback",
+      "label": "RSI Trend Pullback",
+      "description": "Join an EMA trend after a controlled pullback."
+    },
+    {
+      "id": "tick_momentum",
+      "label": "Tick Momentum Burst",
+      "description": "Fast directional burst based only on recent ticks."
+    }
+  ],
+  "profiles": {
+    "ema_rsi": {
+      "balanced": {
+        "ema_fast": 8,
+        "ema_slow": 21,
+        "rsi_period": 12,
+        "up_rsi_min": 54,
+        "up_rsi_max": 66,
+        "down_rsi_min": 34,
+        "down_rsi_max": 46,
+        "momentum_ticks": 5,
+        "momentum_required": 4,
+        "confirmations": 2,
+        "cooldown_ticks": 3,
+        "history_count": 250
+      },
+      "fast": {
+        "ema_fast": 6,
+        "ema_slow": 18,
+        "rsi_period": 10,
+        "up_rsi_min": 52,
+        "up_rsi_max": 69,
+        "down_rsi_min": 31,
+        "down_rsi_max": 48,
+        "momentum_ticks": 4,
+        "momentum_required": 3,
+        "confirmations": 1,
+        "cooldown_ticks": 2,
+        "history_count": 220
+      },
+      "strict": {
+        "ema_fast": 10,
+        "ema_slow": 30,
+        "rsi_period": 14,
+        "up_rsi_min": 56,
+        "up_rsi_max": 64,
+        "down_rsi_min": 36,
+        "down_rsi_max": 44,
+        "momentum_ticks": 6,
+        "momentum_required": 5,
+        "confirmations": 3,
+        "cooldown_ticks": 6,
+        "history_count": 300
+      }
+    },
+    "hammer": {
+      "balanced": {
+        "candle_ticks": 8,
+        "min_long_wick_body_ratio": 2.2,
+        "max_opposite_wick_body_ratio": 0.5,
+        "min_body_range_ratio": 0.05,
+        "max_body_range_ratio": 0.3,
+        "context_candles": 3,
+        "breakout_expiry_ticks": 10,
+        "history_count": 420,
+        "cooldown_ticks": 3,
+        "enabled_patterns": [
+          "hammer",
+          "bullish_hammer",
+          "bearish_hammer",
+          "inverted_hammer",
+          "bullish_inverted_hammer",
+          "bearish_inverted_hammer",
+          "hanging_man",
+          "shooting_star",
+          "bullish_upper_wick_rejection",
+          "bearish_upper_wick_rejection",
+          "flat_bottom_bullish_rejection",
+          "flat_bottom_bearish_rejection",
+          "dragonfly_doji",
+          "gravestone_doji",
+          "bullish_engulfing",
+          "bearish_engulfing",
+          "bullish_harami",
+          "bearish_harami",
+          "tweezer_bottom",
+          "tweezer_top"
+        ],
+        "confirmation_mode": "breakout",
+        "min_pattern_score": 0.55,
+        "doji_body_ratio": 0.08,
+        "marubozu_body_ratio": 0.8,
+        "candle_mode": "time",
+        "candle_seconds": 60,
+        "shape_mode": "percent",
+        "min_body_pct": 5.0,
+        "max_body_pct": 45.0,
+        "min_long_wick_pct": 35.0,
+        "max_opposite_wick_pct": 12.0,
+        "body_edge_zone_pct": 45.0,
+        "flat_wick_max_pct": 5.0,
+        "rejection_min_body_pct": 20.0,
+        "rejection_max_body_pct": 82.0,
+        "rejection_min_wick_pct": 15.0,
+        "rejection_max_opposite_wick_pct": 6.0,
+        "context_mode": "trend",
+        "context_agreement_pct": 60.0,
+        "pattern_conflict_policy": "block",
+        "doji_body_pct": 8.0,
+        "marubozu_body_pct": 80.0
+      },
+      "fast": {
+        "candle_ticks": 6,
+        "min_long_wick_body_ratio": 1.8,
+        "max_opposite_wick_body_ratio": 0.7,
+        "min_body_range_ratio": 0.03,
+        "max_body_range_ratio": 0.38,
+        "context_candles": 2,
+        "breakout_expiry_ticks": 8,
+        "history_count": 360,
+        "cooldown_ticks": 2,
+        "enabled_patterns": [
+          "hammer",
+          "bullish_hammer",
+          "bearish_hammer",
+          "inverted_hammer",
+          "bullish_inverted_hammer",
+          "bearish_inverted_hammer",
+          "hanging_man",
+          "bullish_hanging_man",
+          "bearish_hanging_man",
+          "shooting_star",
+          "bullish_shooting_star",
+          "bearish_shooting_star",
+          "bullish_upper_wick_rejection",
+          "bearish_upper_wick_rejection",
+          "bullish_lower_wick_rejection",
+          "bearish_lower_wick_rejection",
+          "flat_bottom_bullish_rejection",
+          "flat_bottom_bearish_rejection",
+          "bullish_belt_hold",
+          "bearish_belt_hold",
+          "standard_doji",
+          "dragonfly_doji",
+          "gravestone_doji",
+          "long_legged_doji",
+          "rickshaw_man",
+          "four_price_doji",
+          "spinning_top",
+          "high_wave",
+          "bullish_engulfing",
+          "bearish_engulfing",
+          "bullish_harami",
+          "bearish_harami",
+          "piercing_line",
+          "dark_cloud_cover",
+          "tweezer_bottom",
+          "tweezer_top",
+          "morning_star",
+          "evening_star",
+          "morning_doji_star",
+          "evening_doji_star",
+          "bullish_marubozu",
+          "bearish_marubozu",
+          "three_white_soldiers",
+          "three_black_crows"
+        ],
+        "confirmation_mode": "close",
+        "min_pattern_score": 0.45,
+        "doji_body_ratio": 0.1,
+        "marubozu_body_ratio": 0.72,
+        "candle_mode": "time",
+        "candle_seconds": 60,
+        "shape_mode": "percent",
+        "min_body_pct": 3.0,
+        "max_body_pct": 55.0,
+        "min_long_wick_pct": 25.0,
+        "max_opposite_wick_pct": 18.0,
+        "body_edge_zone_pct": 50.0,
+        "flat_wick_max_pct": 8.0,
+        "rejection_min_body_pct": 12.0,
+        "rejection_max_body_pct": 88.0,
+        "rejection_min_wick_pct": 12.0,
+        "rejection_max_opposite_wick_pct": 10.0,
+        "context_mode": "trend",
+        "context_agreement_pct": 50.0,
+        "pattern_conflict_policy": "highest_score",
+        "doji_body_pct": 10.0,
+        "marubozu_body_pct": 72.0
+      },
+      "strict": {
+        "candle_ticks": 10,
+        "min_long_wick_body_ratio": 2.8,
+        "max_opposite_wick_body_ratio": 0.35,
+        "min_body_range_ratio": 0.06,
+        "max_body_range_ratio": 0.25,
+        "context_candles": 4,
+        "breakout_expiry_ticks": 10,
+        "history_count": 480,
+        "cooldown_ticks": 6,
+        "enabled_patterns": [
+          "hammer",
+          "bullish_hammer",
+          "inverted_hammer",
+          "bullish_inverted_hammer",
+          "shooting_star",
+          "bearish_shooting_star",
+          "dragonfly_doji",
+          "gravestone_doji",
+          "bullish_upper_wick_rejection",
+          "bearish_upper_wick_rejection",
+          "flat_bottom_bullish_rejection",
+          "flat_bottom_bearish_rejection",
+          "bullish_engulfing",
+          "bearish_engulfing",
+          "morning_doji_star",
+          "evening_doji_star",
+          "tweezer_bottom",
+          "tweezer_top",
+          "three_white_soldiers",
+          "three_black_crows"
+        ],
+        "confirmation_mode": "breakout",
+        "min_pattern_score": 0.7,
+        "doji_body_ratio": 0.05,
+        "marubozu_body_ratio": 0.85,
+        "candle_mode": "time",
+        "candle_seconds": 60,
+        "shape_mode": "percent",
+        "min_body_pct": 6.0,
+        "max_body_pct": 35.0,
+        "min_long_wick_pct": 45.0,
+        "max_opposite_wick_pct": 8.0,
+        "body_edge_zone_pct": 38.0,
+        "flat_wick_max_pct": 3.0,
+        "rejection_min_body_pct": 25.0,
+        "rejection_max_body_pct": 72.0,
+        "rejection_min_wick_pct": 22.0,
+        "rejection_max_opposite_wick_pct": 4.0,
+        "context_mode": "strict",
+        "context_agreement_pct": 75.0,
+        "pattern_conflict_policy": "block",
+        "doji_body_pct": 5.0,
+        "marubozu_body_pct": 85.0
+      }
+    },
+    "macd": {
+      "balanced": {
+        "fast_period": 12,
+        "slow_period": 26,
+        "signal_period": 9,
+        "histogram_threshold": 0.01,
+        "confirmations": 2,
+        "cooldown_ticks": 5,
+        "history_count": 320
+      },
+      "fast": {
+        "fast_period": 6,
+        "slow_period": 13,
+        "signal_period": 5,
+        "histogram_threshold": 0.0,
+        "confirmations": 1,
+        "cooldown_ticks": 2,
+        "history_count": 220
+      },
+      "strict": {
+        "fast_period": 12,
+        "slow_period": 30,
+        "signal_period": 10,
+        "histogram_threshold": 0.03,
+        "confirmations": 3,
+        "cooldown_ticks": 8,
+        "history_count": 380
+      }
+    },
+    "bollinger_reversion": {
+      "balanced": {
+        "period": 20,
+        "stddev_multiplier": 2.0,
+        "rsi_period": 14,
+        "oversold": 35,
+        "overbought": 65,
+        "confirmations": 2,
+        "cooldown_ticks": 4,
+        "history_count": 280
+      },
+      "fast": {
+        "period": 14,
+        "stddev_multiplier": 1.7,
+        "rsi_period": 10,
+        "oversold": 40,
+        "overbought": 60,
+        "confirmations": 1,
+        "cooldown_ticks": 2,
+        "history_count": 220
+      },
+      "strict": {
+        "period": 24,
+        "stddev_multiplier": 2.3,
+        "rsi_period": 14,
+        "oversold": 30,
+        "overbought": 70,
+        "confirmations": 3,
+        "cooldown_ticks": 7,
+        "history_count": 340
+      }
+    },
+    "bollinger_breakout": {
+      "balanced": {
+        "period": 20,
+        "stddev_multiplier": 2.0,
+        "momentum_ticks": 4,
+        "momentum_required": 3,
+        "confirmations": 2,
+        "cooldown_ticks": 4,
+        "history_count": 280
+      },
+      "fast": {
+        "period": 14,
+        "stddev_multiplier": 1.6,
+        "momentum_ticks": 3,
+        "momentum_required": 2,
+        "confirmations": 1,
+        "cooldown_ticks": 2,
+        "history_count": 220
+      },
+      "strict": {
+        "period": 24,
+        "stddev_multiplier": 2.4,
+        "momentum_ticks": 6,
+        "momentum_required": 5,
+        "confirmations": 3,
+        "cooldown_ticks": 8,
+        "history_count": 340
+      }
+    },
+    "stochastic": {
+      "balanced": {
+        "lookback_period": 14,
+        "smooth_k": 3,
+        "smooth_d": 3,
+        "oversold": 20,
+        "overbought": 80,
+        "confirmations": 1,
+        "cooldown_ticks": 4,
+        "history_count": 280
+      },
+      "fast": {
+        "lookback_period": 9,
+        "smooth_k": 2,
+        "smooth_d": 2,
+        "oversold": 25,
+        "overbought": 75,
+        "confirmations": 1,
+        "cooldown_ticks": 2,
+        "history_count": 220
+      },
+      "strict": {
+        "lookback_period": 18,
+        "smooth_k": 3,
+        "smooth_d": 4,
+        "oversold": 15,
+        "overbought": 85,
+        "confirmations": 2,
+        "cooldown_ticks": 7,
+        "history_count": 340
+      }
+    },
+    "donchian": {
+      "balanced": {
+        "period": 20,
+        "breakout_buffer": 0.0,
+        "confirmations": 1,
+        "cooldown_ticks": 5,
+        "history_count": 280
+      },
+      "fast": {
+        "period": 10,
+        "breakout_buffer": 0.0,
+        "confirmations": 1,
+        "cooldown_ticks": 2,
+        "history_count": 200
+      },
+      "strict": {
+        "period": 30,
+        "breakout_buffer": 0.05,
+        "confirmations": 2,
+        "cooldown_ticks": 8,
+        "history_count": 380
+      }
+    },
+    "rsi_pullback": {
+      "balanced": {
+        "trend_ema": 34,
+        "pullback_ema": 8,
+        "rsi_period": 14,
+        "up_rsi_min": 48,
+        "up_rsi_max": 60,
+        "down_rsi_min": 40,
+        "down_rsi_max": 52,
+        "confirmations": 1,
+        "cooldown_ticks": 4,
+        "history_count": 320
+      },
+      "fast": {
+        "trend_ema": 21,
+        "pullback_ema": 5,
+        "rsi_period": 10,
+        "up_rsi_min": 45,
+        "up_rsi_max": 65,
+        "down_rsi_min": 35,
+        "down_rsi_max": 55,
+        "confirmations": 1,
+        "cooldown_ticks": 2,
+        "history_count": 240
+      },
+      "strict": {
+        "trend_ema": 50,
+        "pullback_ema": 10,
+        "rsi_period": 14,
+        "up_rsi_min": 50,
+        "up_rsi_max": 58,
+        "down_rsi_min": 42,
+        "down_rsi_max": 50,
+        "confirmations": 2,
+        "cooldown_ticks": 8,
+        "history_count": 420
+      }
+    },
+    "tick_momentum": {
+      "balanced": {
+        "lookback_ticks": 6,
+        "required_directional_ticks": 5,
+        "min_net_change": 0.2,
+        "confirmations": 1,
+        "cooldown_ticks": 3,
+        "history_count": 220
+      },
+      "fast": {
+        "lookback_ticks": 4,
+        "required_directional_ticks": 3,
+        "min_net_change": 0.1,
+        "confirmations": 1,
+        "cooldown_ticks": 1,
+        "history_count": 180
+      },
+      "strict": {
+        "lookback_ticks": 8,
+        "required_directional_ticks": 7,
+        "min_net_change": 0.3,
+        "confirmations": 2,
+        "cooldown_ticks": 6,
+        "history_count": 280
+      }
+    }
+  }
+}

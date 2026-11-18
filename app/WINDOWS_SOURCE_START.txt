@@ -1,0 +1,76 @@
+CONTROL NEXUS - SOURCE ONLY WINDOWS BUILD
+
+This archive intentionally contains NO EXE, VBS, BAT, CMD, MSI, or PowerShell files.
+
+To run it on Windows:
+
+1. Install Python 3.11 or newer from python.org and enable "Add Python to PATH".
+2. Open Command Prompt in this folder.
+3. Run:
+
+   python -m venv .venv
+   .venv\Scripts\python.exe -m pip install --upgrade pip
+   .venv\Scripts\python.exe -m pip install -r requirements.txt
+   .venv\Scripts\python.exe web_ui.py
+
+4. Open the local Control Nexus URL shown in the Command Prompt.
+
+The Python, HTML, CSS, JavaScript, strategy configuration, presets, and UI source files are editable normally.
+
+V2.21 COMMAND DECK
+------------------
+Dashboard has Simple and Advanced modes. Simple keeps the existing low-clutter view.
+Advanced is now a modular command center with TOP / LEFT / CENTER / RIGHT / BOTTOM docks.
+
+Default Advanced workspace:
+- TOP: API/account/bot/symbol/quote/open-position telemetry rail.
+- LEFT: Account & Capital, Performance, Account Activity API.
+- CENTER: large live Candlestick Monitor, Signal Engine, Positions, Recent Trades.
+- RIGHT: tabbed Command Deck for Control / Protection / Strategy / Sizing, plus API health and Runtime Audit.
+- BOTTOM: mirrored live console.
+
+Workspace customization:
+- Drag widgets between docks while Customize Workspace is active.
+- Change each widget dock, width, height, visibility, or focus it fullscreen.
+- Choose left/right dock width and Comfortable / Compact / Dense display density.
+- Save multiple workspace presets locally and restore/reset them later.
+
+Live-control behavior:
+- Immediate when safe: max-open, trades per signal, delay, multiplier, TP/exit controls, stop rules, Smart Exit/Loss and supported strategy settings.
+- Queued until flat: capital, split count and compounding. The bot process stays alive while waiting.
+- Strategy hot reload rebuilds only the signal engine and seeds it from recent ticks; open-position management remains active.
+- API tokens are never returned in runtime telemetry.
+
+Account API widget:
+- Reads balance, portfolio count, statement activity and profit-table count through an authenticated Deriv connection.
+- Summarizes recent deposit/withdrawal rows when Deriv returns them.
+- Funding button opens the official Deriv dashboard/Wallet flow. Direct arbitrary deposits are not attempted with a normal trading token.
+
+V2.21 RISE / FALL STEP 100
+--------------------------
+A new top-level Rise / Fall section runs its own fixed-expiry CALL / PUT engine.
+It has independent capital, duration, model, risk settings, live odds monitor,
+open-contract table, persistent history, console, pause/resume and hot controls.
+
+Default mode is Signals only. Choose Demo auto trade to test automatic CALL/PUT
+orders. REAL auto trade requires typing LIVE in the Rise/Fall Live tab.
+
+Best Odds Auto does not simply chase payout: a side must first pass the configured
+model confidence, direction-edge and minimum-return gates. Qualified CALL/PUT
+proposals are then ranked using direction confidence plus current proposal return.
+
+V2.22 RISE/FALL PRESETS + OPTIMIZER
+-----------------------------------
+Rise/Fall now has its own portable configuration library:
+- Save named Rise/Fall presets.
+- Select a saved preset to load it into the Rise/Fall form.
+- Download a preset as JSON and import/upload it on another install.
+- Delete saved Rise/Fall presets without touching multiplier presets.
+- A loaded preset does not silently alter a running engine; use Apply configuration live when you want to push it into the active process.
+
+Optimization exports:
+- Download a readable Markdown (.MD) or raw JSON optimization report.
+- Reports contain sanitized Rise/Fall history, current setup, drawdown/streak/performance statistics and breakdowns by direction, duration, mode, confidence and model edge.
+- V2.22+ trades add entry-time signal confidence, model edge, proposal return, break-even %, RSI/momentum, lookback, thresholds and strategy weights to the persistent history.
+- Existing V2.21 history is preserved and marked as legacy where those richer fields were not yet recorded.
+- API tokens, App IDs, account IDs and contract IDs are intentionally omitted.

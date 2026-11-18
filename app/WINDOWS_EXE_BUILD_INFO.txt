@@ -1,0 +1,29 @@
+DR EXPLOIT CONTROL NEXUS V2.27 - WINDOWS EXE BOOTSTRAP
+
+Fixed Deriv App ID:
+346MK1Nd8vpaSJy7EzQQT
+
+The bootstrap EXE installs/extracts this source to:
+%LOCALAPPDATA%\ControlNexus
+
+On first run it requires Python 3.11+ (the installer can use Winget when available),
+creates its own .venv, and installs requirements.txt. Upgrades preserve local
+credentials, presets, trade history, Ollama optimizer settings/history and AI run data.
+
+V2.27 replaces the cloud OpenAI optimizer with self-hosted Ollama for both Rise/Fall
+and Multiplier. It supports Advisor, DEMO Auto Lab, DEMO Adaptive validated-preset
+selection, and explicit AI Trade mode using only locally validated presets.
+
+AI Trade requires the operator to enable it and type LIVE each time it starts. The
+local bot remains the executor, compounding is forced off, AI cannot change stake,
+capital or order count, and session loss/profit/trade caps are enforced locally.
+
+No API token, account ID, .env, Web UI secret, external AI key, or runtime trade
+data is packaged in this installer payload. Ollama may run on localhost or a user-
+configured LAN/self-hosted URL.
+
+V2.27 signal snapshot integrity fix:
+- Freezes the exact strategy metrics at the instant a signal passes.
+- Every split position in that batch uses the same frozen entry pattern/context.
+- Hammer entries fail closed if the frozen signal has no valid pattern.
+- Adaptive/fixed batch TP scoring uses the frozen entry metrics instead of later ticks.

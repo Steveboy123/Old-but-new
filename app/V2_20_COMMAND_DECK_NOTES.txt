@@ -1,0 +1,19 @@
+Dr Exploit Control Nexus V2.20 — Command Deck
+
+Advanced dashboard upgrade:
+- Fixed top API/telemetry rail.
+- Zoned workspace: TOP / LEFT / CENTER / RIGHT / BOTTOM docks.
+- Default LEFT: Account & Capital, Performance, Account Activity API.
+- Default CENTER: large live Candlestick Monitor, Signal Engine, Positions, Recent Trades.
+- Default RIGHT: tabbed Command Deck (Control / Protection / Strategy / Sizing), API health, Runtime Audit.
+- Default BOTTOM: mirrored live console.
+- Drag widgets across docks in Customize Workspace mode.
+- Cycle widget dock, width, height, hide/show, and Focus mode.
+- Adjustable left/right dock widths and Comfortable/Compact/Dense workspace density.
+- Saved workspace presets include dock positions and workspace sizing preferences.
+- Account API snapshot reads balance, portfolio, statement and profit table through a separate authenticated connection.
+- Statement widget summarizes recent deposits/withdrawals and recent activity when the API supplies those rows.
+- Open Deriv Wallet button launches the official Deriv dashboard for funding.
+
+Funding note:
+Deriv's direct payment-agent transfer endpoint is intended for registered payment agents and requires payment permission. V2.20 therefore does not attempt arbitrary real-money deposits from the trading token.
